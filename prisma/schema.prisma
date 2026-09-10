@@ -62,32 +62,32 @@ model Channel {
 }
 
 model Template {
-  id           String            @id @default(cuid())
-  workspaceId  String?
-  workspace    Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  name         String
-  description  String            @default("")
-  tags         Json
-  schemaVersion Int              @default(1)
-  canvasWidth  Int
-  canvasHeight Int
-  document     Json
-  thumbnailUrl String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  versions     TemplateVersion[]
-  renderJobs   RenderJob[]
+  id            String            @id @default(cuid())
+  workspaceId   String?
+  workspace     Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name          String
+  description   String            @default("")
+  tags          Json
+  schemaVersion Int               @default(1)
+  canvasWidth   Int
+  canvasHeight  Int
+  document      Json
+  thumbnailUrl  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  versions      TemplateVersion[]
+  renderJobs    RenderJob[]
 
   @@index([workspaceId, updatedAt])
 }
 
 model TemplateVersion {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   templateId String
-  template  Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  version   Int
-  document  Json
-  createdAt DateTime @default(now())
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version    Int
+  document   Json
+  createdAt  DateTime @default(now())
 
   @@unique([templateId, version])
   @@index([templateId, createdAt])
@@ -133,6 +133,7 @@ model ContentItem {
   publications Publication[]
 
   @@index([channelId, status])
+  @@index([status, scheduledFor])
 }
 
 model RenderJob {
@@ -173,24 +174,31 @@ model SocialAccount {
 }
 
 model Publication {
-  id          String      @id @default(cuid())
-  contentId   String
-  content     ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  platform    String
-  accountId   String
-  externalId  String?
-  status      String
-  views       Int?
-  likes       Int?
-  comments    Int?
-  shares      Int?
-  saves       Int?
-  watchTimeMs Int?
-  raw         Json?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  contentId    String
+  content      ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  platform     String
+  accountId    String
+  externalId   String?
+  status       String      @default("QUEUED")
+  scheduledFor DateTime?
+  startedAt    DateTime?
+  publishedAt  DateTime?
+  attempts     Int         @default(0)
+  lastError    String?
+  views        Int?
+  likes        Int?
+  comments     Int?
+  shares       Int?
+  saves        Int?
+  watchTimeMs  Int?
+  raw          Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([contentId, platform])
+  @@index([status, scheduledFor])
+  @@index([accountId, createdAt])
 }
 
 model Setting {
