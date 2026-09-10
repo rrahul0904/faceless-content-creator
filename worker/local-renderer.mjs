@@ -6,6 +6,41 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
 
+const TEMPLATES = {
+  editorial: {
+    background: '0x0B0D10',
+    accent: '0xD7FF64',
+    titleY: 210,
+    titleSize: 70,
+    subtitleSize: 27,
+    subtitleMargin: 180,
+  },
+  signal: {
+    background: '0x111827',
+    accent: '0x60A5FA',
+    titleY: 250,
+    titleSize: 74,
+    subtitleSize: 28,
+    subtitleMargin: 210,
+  },
+  ember: {
+    background: '0x180F0B',
+    accent: '0xFB923C',
+    titleY: 190,
+    titleSize: 72,
+    subtitleSize: 27,
+    subtitleMargin: 170,
+  },
+};
+
+export function listLocalTemplates() {
+  return Object.keys(TEMPLATES);
+}
+
+function templateFor(name) {
+  return TEMPLATES[name] ?? TEMPLATES.editorial;
+}
+
 function srtTime(seconds) {
   const ms = Math.max(0, Math.round(seconds * 1000));
   const hours = Math.floor(ms / 3600000);
@@ -39,6 +74,10 @@ function voiceName(voice) {
   return allowed.has(voice) ? voice : 'en-us';
 }
 
+function escapeFilterPath(value) {
+  return value.replaceAll('\\', '/').replaceAll(':', '\\:').replaceAll("'", "\\'");
+}
+
 export async function assertLocalMediaTools() {
   await execFileAsync('ffmpeg', ['-version']);
   await execFileAsync('ffprobe', ['-version']);
@@ -56,10 +95,13 @@ export async function renderFacelessVideo(input) {
 
   const audioFile = path.join(workDir, 'voice.wav');
   const hookFile = path.join(workDir, 'hook.txt');
+  const topicFile = path.join(workDir, 'topic.txt');
   const captionFile = path.join(workDir, 'captions.srt');
   const outputFile = path.join(renderDir, `${input.jobId}.mp4`);
+  const template = templateFor(input.template);
 
   await writeFile(hookFile, input.hook.trim(), 'utf8');
+  await writeFile(topicFile, String(input.topic ?? 'FACELESS').trim().toUpperCase(), 'utf8');
   await execFileAsync('espeak-ng', [
     '-v', voiceName(input.voice ?? 'en-us'),
     '-s', String(input.speechRate ?? 165),
@@ -78,18 +120,24 @@ export async function renderFacelessVideo(input) {
   const duration = Math.max(Number.parseFloat(stdout.trim()) || 20, 2);
   await writeFile(captionFile, buildSrt(input.script, duration), 'utf8');
 
-  const escapedCaptionFile = captionFile.replaceAll('\\', '/').replaceAll(':', '\\:');
-  const escapedHookFile = hookFile.replaceAll('\\', '/').replaceAll(':', '\\:');
+  const escapedCaptionFile = escapeFilterPath(captionFile);
+  const escapedHookFile = escapeFilterPath(hookFile);
+  const escapedTopicFile = escapeFilterPath(topicFile);
   const videoFilter = [
-    `drawtext=fontfile=${FONT}:textfile=${escapedHookFile}:fontcolor=white:fontsize=72:line_spacing=18:x=(w-text_w)/2:y=180:box=1:boxcolor=black@0.34:boxborderw=34`,
-    `subtitles=${escapedCaptionFile}:force_style='FontName=DejaVu Sans,FontSize=26,PrimaryColour=&H00FFFFFF,OutlineColour=&H65000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=170'`,
+    `drawbox=x=0:y=0:w=iw:h=18:color=${template.accent}:t=fill`,
+    `drawbox=x=90:y=145:w=150:h=12:color=${template.accent}:t=fill`,
+    `drawtext=fontfile=${FONT}:textfile=${escapedTopicFile}:fontcolor=${template.accent}:fontsize=30:x=90:y=82`,
+    `drawtext=fontfile=${FONT}:textfile=${escapedHookFile}:fontcolor=white:fontsize=${template.titleSize}:line_spacing=18:x=90:y=${template.titleY}:box=1:boxcolor=black@0.18:boxborderw=18`,
+    `drawbox=x=90:y=h-115:w=900:h=2:color=white@0.24:t=fill`,
+    `drawtext=fontfile=${FONT}:text='FACELESS':fontcolor=white@0.58:fontsize=24:x=90:y=h-86`,
+    `subtitles=${escapedCaptionFile}:force_style='FontName=DejaVu Sans,FontSize=${template.subtitleSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H65000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=${template.subtitleMargin}'`,
     'format=yuv420p',
   ].join(',');
 
   await execFileAsync('ffmpeg', [
     '-y',
     '-f', 'lavfi',
-    '-i', `color=c=0x0B0D10:s=1080x1920:r=30:d=${duration.toFixed(3)}`,
+    '-i', `color=c=${template.background}:s=1080x1920:r=30:d=${duration.toFixed(3)}`,
     '-i', audioFile,
     '-vf', videoFilter,
     '-c:v', 'libx264',
@@ -111,5 +159,6 @@ export async function renderFacelessVideo(input) {
     duration,
     bytes: bytes.length,
     engine: 'ffmpeg+espeak-ng',
+    template: input.template ?? 'editorial',
   };
 }
