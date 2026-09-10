@@ -1,3 +1,5 @@
+import { Creator } from '@/components/creator';
+
 const stages = [
   ['Discover', 'Find high-potential topics'],
   ['Script', 'Hook, story, caption & CTA'],
@@ -20,8 +22,8 @@ export default function Home() {
           <h1>One idea in. A week of shorts out.</h1>
           <p className="muted">Discover topics, research claims, write scripts, render vertical video, approve, publish and learn from performance without living inside an automation canvas.</p>
           <div className="ctaRow">
-            <button className="button">Create a channel</button>
-            <button className="button secondary">View content queue</button>
+            <a className="button" href="#studio">Create a short</a>
+            <a className="button secondary" href="#pipeline">View pipeline</a>
           </div>
         </div>
         <div className="heroCard preview">
@@ -40,7 +42,9 @@ export default function Home() {
         <div className="stat"><strong>+28%</strong><span>7-day completion rate</span></div>
       </section>
 
-      <section className="panel">
+      <div id="studio"><Creator /></div>
+
+      <section className="panel" id="pipeline">
         <div className="panelHeader"><div><div className="eyebrow">Production pipeline</div><h2>From signal to published short</h2></div><div className="status"><span className="dot"/>System healthy</div></div>
         <div className="pipeline">{stages.map(([title, copy], i)=><div className="step" key={title}><small>0{i+1}</small><b>{title}</b><small>{copy}</small></div>)}</div>
       </section>
