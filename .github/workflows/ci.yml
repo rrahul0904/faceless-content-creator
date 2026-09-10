@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 jobs:
@@ -13,13 +12,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install local media engine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm install
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
+      - run: mkdir -p data/renders data/work && npm run db:push
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/faceless_creator?schema=public
-          ORSHOT_API_KEY: ci-placeholder
-          ORSHOT_TEMPLATE_ID: "1"
+      - name: Render real MP4 smoke test
+        run: npm run render:smoke
