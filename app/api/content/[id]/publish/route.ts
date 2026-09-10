@@ -1,33 +1,11 @@
-import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { publishVideo } from '@/lib/orshot';
 
 const Input = z.object({
-  accountIds: z.array(z.number().int().positive()).min(1),
+  accountIds: z.array(z.string().cuid()).min(1),
   draft: z.boolean().optional(),
   scheduledFor: z.string().datetime().optional(),
-  timezone: z.string().optional(),
 });
-
-function extractPostId(value: unknown): number | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const record = value as Record<string, unknown>;
-  const direct = record.id;
-  if (typeof direct === 'number') return direct;
-  const data = record.data;
-  if (data && typeof data === 'object') {
-    const post = (data as Record<string, unknown>).post;
-    if (post && typeof post === 'object' && typeof (post as Record<string, unknown>).id === 'number') {
-      return (post as Record<string, unknown>).id as number;
-    }
-  }
-  return undefined;
-}
-
-function toPrismaJson(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
-}
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -38,47 +16,33 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!content.videoUrl) {
       return Response.json({ ok: false, error: 'Content must have a rendered video before publishing' }, { status: 409 });
     }
-    if (content.status !== 'APPROVED' && !payload.draft) {
-      return Response.json({ ok: false, error: 'Approve content before scheduling or publishing it' }, { status: 409 });
+
+    const accounts = await db.socialAccount.findMany({ where: { id: { in: payload.accountIds } } });
+    if (accounts.length !== payload.accountIds.length) {
+      return Response.json({ ok: false, error: 'One or more social accounts were not found' }, { status: 404 });
     }
 
-    const result = await publishVideo({
-      videoUrl: content.videoUrl,
-      caption: content.caption ?? content.hook ?? content.topic,
-      accountIds: payload.accountIds,
-      draft: payload.draft,
-      scheduledFor: payload.scheduledFor,
-      timezone: payload.timezone,
-    });
+    const disconnected = accounts.filter((account) => account.status !== 'connected');
+    if (disconnected.length) {
+      return Response.json({
+        ok: false,
+        error: 'Native social publishing requires a connected platform account. Rendering and MP4 export remain fully zero-config.',
+        disconnected: disconnected.map((account) => ({ id: account.id, platform: account.platform, label: account.label })),
+      }, { status: 409 });
+    }
 
-    const postId = extractPostId(result);
-    const nextStatus = payload.draft ? 'REVIEW' : payload.scheduledFor ? 'SCHEDULED' : 'PUBLISHED';
-    const raw = toPrismaJson(result);
-
-    await db.$transaction([
-      db.contentItem.update({
-        where: { id },
-        data: {
-          status: nextStatus,
-          ...(payload.scheduledFor ? { scheduledFor: new Date(payload.scheduledFor) } : {}),
-          ...(!payload.draft && !payload.scheduledFor ? { publishedAt: new Date() } : {}),
-        },
-      }),
-      ...payload.accountIds.map((accountId) => db.publication.create({
-        data: {
-          contentId: id,
-          platform: 'connected',
-          accountId,
-          externalId: postId ? String(postId) : null,
-          status: payload.draft ? 'draft' : payload.scheduledFor ? 'scheduled' : 'processing',
-          raw,
-        },
-      })),
-    ]);
-
-    return Response.json({ ok: true, result, contentStatus: nextStatus });
+    return Response.json({
+      ok: false,
+      error: 'Native YouTube, Instagram and TikTok OAuth adapters are not enabled in this build yet. No third-party publishing proxy is being used.',
+      requested: {
+        contentId: id,
+        accountIds: payload.accountIds,
+        draft: payload.draft ?? false,
+        scheduledFor: payload.scheduledFor ?? null,
+      },
+    }, { status: 501 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to publish content';
+    const message = error instanceof Error ? error.message : 'Unable to prepare publication';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
 }

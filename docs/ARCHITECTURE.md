@@ -2,44 +2,92 @@
 
 ## Goal
 
-Faceless Content Creator turns a content idea into a reviewed, rendered and published vertical short while keeping the rendering and social vendors replaceable.
+Faceless Content Creator turns a content idea into a narrated, captioned vertical MP4 while keeping the default system self-contained. Rendering, persistence and job state work without a hosted media API or database service.
 
 ## Components
 
-- **Next.js web app**: operator dashboard, creation studio and API surface.
-- **Content service**: provider-neutral short-form script generation. It works in deterministic demo mode without an LLM key and supports an OpenAI-compatible endpoint through environment variables.
-- **PostgreSQL + Prisma**: channels, content items, render state and publications.
-- **Orshot adapter**: async Studio rendering, render-job polling and social publishing.
-- **n8n workflow**: importable recreation of the reference workflow, upgraded with a real social-draft node and an explicit human-review gate.
-- **CI**: typecheck and production build on every push and pull request.
+- **Next.js web app** — creation studio, operator UI and API surface.
+- **Content service** — deterministic short-form script generation by default, with an optional OpenAI-compatible model adapter.
+- **SQLite + Prisma** — channels, content items, render jobs, social accounts, publications and settings.
+- **Local render queue** — creates durable render jobs and starts detached workers.
+- **eSpeak NG** — bundled local narration provider.
+- **FFmpeg / ffprobe** — timing, subtitle burn-in, video composition and H.264/AAC encoding.
+- **Local asset endpoint** — streams completed MP4 files from `data/renders`.
+- **n8n workflow** — optional scheduled client of the application API; not part of the required runtime.
+- **CI** — validates dependencies, schema, lint, TypeScript, production build and a real local MP4 render.
+
+## Default production flow
+
+```text
+Idea
+  ↓
+Script package
+  ↓
+POST /api/render
+  ↓
+SQLite RenderJob = QUEUED
+  ↓
+Detached local worker
+  ↓
+eSpeak NG narration
+  ↓
+ffprobe duration
+  ↓
+Timed SRT captions
+  ↓
+FFmpeg 1080x1920 MP4
+  ↓
+SQLite RenderJob = SUCCEEDED
+  ↓
+GET /api/assets/:filename
+  ↓
+Review / download / export
+```
 
 ## Content lifecycle
 
 `IDEA -> SCRIPTED -> RENDERING -> REVIEW -> APPROVED -> SCHEDULED -> PUBLISHED`
 
-`FAILED` is terminal until the operator retries the failed stage.
+`FAILED` is available for failed render or publishing stages. Rendering itself can reach `REVIEW` without any third-party account.
 
-## Production flow
+## Render-job durability
 
-1. Discover/import an idea.
-2. Generate a hook, spoken script and caption.
-3. Generate or select presenter/b-roll media.
-4. Start an asynchronous Orshot Studio MP4 render.
-5. Poll `/v1/studio/render-jobs/:id` or consume an Orshot webhook.
-6. Store the returned video URL and move content to `REVIEW`.
-7. Operator approves or regenerates.
-8. Publish immediately, schedule, or create a draft using Orshot social publishing.
-9. Persist platform publication IDs and metrics.
-10. Feed performance back into future topic/hook scoring.
+Each render request is stored before the worker starts. `RenderJob.input` holds the normalized render specification, and `RenderJob.outputFile`, `videoUrl`, timestamps and error state record the outcome.
+
+The detached worker is intentionally separate from the HTTP request so the client can poll job state rather than holding a long request open. This deployment model assumes a persistent Node process, which is why Docker/self-hosting is the default for the local renderer.
+
+## Storage
+
+```text
+data/
+├── faceless.db
+├── renders/
+│   └── <render-job-id>.mp4
+└── work/
+    └── <render-job-id>/
+        ├── voice.wav
+        ├── hook.txt
+        └── captions.srt
+```
+
+The whole directory is mounted as one persistent Docker volume. No external database URL is required.
+
+## Social publishing boundary
+
+Generating a finished video is fully local. Direct social publishing is intentionally treated as a separate adapter boundary because YouTube, Instagram and TikTok require OAuth authorization and platform-specific APIs.
+
+The application stores social connection metadata in `SocialAccount`, but does not route publishing through Orshot or another media proxy. A native connector can later write encrypted OAuth tokens to local settings while keeping the renderer unchanged.
 
 ## Reliability rules
 
-- Long video renders are asynchronous rather than holding an HTTP request open.
-- Vendor API keys remain server-side.
-- Social publishing is not enabled automatically for a new channel.
-- Publishing requests are designed to be persisted before execution so retries can become idempotent.
-- External provider payloads are isolated in adapters rather than spread through UI code.
+- Persist a render job before execution.
+- Never require a renderer API key for the default path.
+- Keep generated media under a dedicated persistent data directory.
+- Reject path traversal in the local asset endpoint.
+- Keep social publishing separate from rendering.
+- Do not report a social post as published unless a native platform API confirms it.
+- Verify the renderer in CI by producing a real MP4.
 
 ## Deployment model
 
-The web application can run on Vercel or as the provided standalone Docker image. PostgreSQL can be Supabase, Neon, RDS, Railway or any standard PostgreSQL service. n8n can be Cloud or self-hosted.
+The zero-config renderer is designed for a persistent Docker host, VM, Railway-style container service or similar environment with durable disk. Stateless serverless deployments such as a plain Vercel Function are not the primary execution environment for local FFmpeg workers and SQLite persistence.

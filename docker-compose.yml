@@ -1,19 +1,11 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: faceless_creator
+  faceless:
+    build: .
     ports:
-      - "5432:5432"
+      - "3000:3000"
     volumes:
-      - faceless_pg:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d faceless_creator"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - faceless_data:/app/data
+    restart: unless-stopped
 
 volumes:
-  faceless_pg:
+  faceless_data:

@@ -1,106 +1,128 @@
 # Faceless Content Creator
 
-Autonomous faceless-content operating system for discovering ideas, writing short-form scripts, generating presenter-led vertical video, reviewing content, publishing or scheduling it across connected social accounts, and learning from performance.
+A local-first faceless-content studio that turns an idea into a narrated, captioned 9:16 MP4 without requiring a hosted rendering API, template ID, presenter image, callback URL, webhook secret, or database server.
 
-This project reverse-engineers the Orshot + n8n faceless-video tutorial and turns its four-node proof of concept into a production-oriented application.
+The project started by reverse-engineering the Orshot + n8n tutorial. The default runtime has now been refactored so Orshot is **not in the critical path**.
 
-## What works
-
-- Interactive Next.js creation studio
-- Niche + idea → hook, script and caption
-- Provider-neutral OpenAI-compatible LLM integration with deterministic demo fallback
-- Orshot AI presenter generation
-- Orshot Studio vertical MP4 rendering
-- Asynchronous render jobs with polling
-- Render-completion webhook correlation
-- Playable rendered-video review state in the browser
-- Immediate, scheduled and held-draft social publishing API
-- Cross-platform social analytics and posting insights API
-- PostgreSQL persistence using Prisma
-- Channels, content lifecycle and publication data model
-- Importable n8n reference workflow upgraded with a real social-draft step
-- Docker + local PostgreSQL configuration
-- GitHub Actions typecheck and production build
-- Standalone Next.js production output for Docker/Vercel hosting
-
-## Product flow
-
-```text
-Idea / source
-    ↓
-Script + hook + caption
-    ↓
-AI presenter
-    ↓
-Vertical render + captions
-    ↓
-Review
-    ↓
-Draft / schedule / publish
-    ↓
-Views + engagement + follower data
-    ↓
-Performance insights for the next content cycle
-```
-
-## Quick start
+## Zero-config quick start
 
 ```bash
 git clone https://github.com/rrahul0904/faceless-content-creator.git
 cd faceless-content-creator
+docker compose up --build
+```
+
+Open `http://localhost:3000`.
+
+That is enough to create and render a video. No `.env` file is required.
+
+## What the default stack uses
+
+- **Next.js 16** for the product UI and API
+- **SQLite + Prisma** at `data/faceless.db`
+- **eSpeak NG** for bundled local text-to-speech
+- **FFmpeg** for 1080×1920 MP4 composition, audio encoding and burned captions
+- **Detached local render jobs** persisted in SQLite
+- **Docker Compose** with one application service and one persistent data volume
+
+## What was removed from the required setup
+
+The default application does **not** require any of the following:
+
+```text
+ORSHOT_API_KEY
+ORSHOT_TEMPLATE_ID
+ORSHOT_PRESENTER_IMAGE
+ORSHOT_VOICE_ID
+DATABASE_URL
+APP_BASE_URL
+WEBHOOK_SECRET
+```
+
+There is no Orshot SDK/adapter in the default runtime and no render-completion webhook.
+
+## Product flow
+
+```text
+Niche + idea
+    ↓
+Hook + script + caption
+    ↓
+Local text-to-speech
+    ↓
+Local 9:16 FFmpeg composition
+    ↓
+Burned captions + narration
+    ↓
+SQLite render-job state
+    ↓
+Browser preview
+    ↓
+Download/export MP4
+```
+
+## Development without Docker
+
+Docker is the easiest path because it installs the media dependencies automatically. For native development install:
+
+- Node.js 22+
+- FFmpeg / ffprobe
+- eSpeak NG
+- DejaVu fonts
+
+Then run:
+
+```bash
 npm install
-cp .env.example .env.local
-docker compose up -d postgres
+mkdir -p data/renders data/work
 npx prisma generate
 npx prisma db push
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+## Script generation
 
-Script generation works without an external LLM in deterministic demo mode. Real presenter generation and rendering require an Orshot API key, Studio template ID, presenter image URL and voice ID.
-
-## Required environment for real video generation
-
-```bash
-ORSHOT_API_KEY="..."
-ORSHOT_TEMPLATE_ID="..."
-ORSHOT_PRESENTER_IMAGE="https://..."
-ORSHOT_VOICE_ID="..."
-```
-
-Set `APP_BASE_URL` to the public application URL and a strong `WEBHOOK_SECRET` to enable render-completion callbacks.
-
-See [`docs/SETUP.md`](docs/SETUP.md) for setup and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the production architecture.
-
-## n8n recreation
-
-Import:
-
-```text
-workflows/n8n/faceless-content-creator.json
-```
-
-The reference workflow reproduces the original schedule → content → presenter → render flow, and adds a disabled-by-default Orshot social-draft node so publishing remains behind an explicit review gate until you decide to enable it.
+The built-in deterministic script engine works with no credentials. An OpenAI-compatible endpoint remains an **optional** enhancement through `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`; none is required for rendering.
 
 ## API surface
 
 | Endpoint | Purpose |
 | --- | --- |
 | `POST /api/script` | Generate a short-form script package |
-| `POST /api/presenter` | Generate the presenter video |
-| `POST /api/render` | Start asynchronous final rendering |
-| `GET /api/render/:id` | Poll a render through completion |
-| `POST /api/publish` | Draft, schedule or publish a rendered video |
-| `GET /api/analytics` | Read social analytics or computed insights |
+| `POST /api/render` | Queue a local FFmpeg render |
+| `GET /api/render/:id` | Read local render status and output URL |
+| `GET /api/assets/:filename` | Stream a rendered MP4 from local storage |
 | `GET/POST /api/channels` | Manage content channels |
-| `GET/POST /api/content` | Manage the content queue |
-| `POST /api/webhooks/orshot` | Reconcile completed async render jobs |
+| `GET/POST /api/content` | Manage persisted content |
+| `POST /api/content/:id/render` | Render persisted content locally |
+| `GET /api/social/accounts` | Read locally stored social connections |
+| `GET /api/analytics` | Read analytics persisted in SQLite |
 | `GET /api/health` | Service health check |
 
-## Status
+## Social publishing
 
-The application code, data model, automation workflow and deployment scaffolding are checked into GitHub and validated through CI. A real end-to-end social post still requires your own provider credentials, Orshot template/presenter configuration, connected social account IDs and a production database/application deployment. Those are runtime account configuration rather than hard-coded repository secrets.
+Video generation and export are fully local and zero-config. Direct publishing to YouTube, Instagram or TikTok is a separate concern because those platforms require OAuth authorization. This repository no longer proxies publishing through Orshot. Native platform adapters can store connection state in the included `SocialAccount` model instead of using renderer credentials.
+
+Until a native adapter is connected, the product gives you the finished MP4 and caption without pretending a post was published.
+
+## n8n
+
+`workflows/n8n/faceless-content-creator.json` is an optional automation client for **this application API**, not for Orshot. The application itself does not require n8n.
+
+## Verification
+
+GitHub Actions verifies the actual self-hosted path:
+
+1. install FFmpeg, eSpeak NG and fonts;
+2. install dependencies and audit production packages;
+3. initialize SQLite;
+4. lint and typecheck;
+5. build Next.js;
+6. render a real narrated MP4 as a smoke test.
+
+A successful CI run therefore proves more than compilation: the local media engine produced a real file.
+
+See [`docs/SETUP.md`](docs/SETUP.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## License
 
