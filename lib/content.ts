@@ -1,54 +1,46 @@
-import { z } from 'zod';
+import type { ContentIdea } from "./types";
 
-const ScriptResult = z.object({
-  topic: z.string(),
-  hook: z.string(),
-  script: z.string(),
-  caption: z.string(),
-  statNumber: z.string().optional(),
-  statLabel: z.string().optional(),
-});
-
-export type ScriptResult = z.infer<typeof ScriptResult>;
-
-export async function generateScript(input: { niche: string; idea: string; audience?: string }): Promise<ScriptResult> {
-  const endpoint = process.env.LLM_BASE_URL;
-  const apiKey = process.env.LLM_API_KEY;
-  const model = process.env.LLM_MODEL;
-
-  if (!endpoint || !apiKey || !model) {
-    const topic = input.idea.trim();
-    return {
-      topic,
-      hook: `The part of ${topic} almost everyone misses.`,
-      script: `Here is the simple version. ${topic} matters because small changes compound quickly. Start with the core idea, remove the jargon, show one concrete example, and end with the implication your audience can use today.`,
-      caption: `${topic} — explained without the fluff. #shorts #facelesscontent`,
-    };
+const demoIdeas: Record<string, Omit<ContentIdea, "id" | "niche">> = {
+  ai: {
+    topic: "AI IN REAL LIFE",
+    hook: "AI agents are starting to use software like employees do.",
+    script: "AI agents are moving beyond chat boxes. They can now navigate software, call tools, inspect files, and complete multi-step work. The shift is simple: instead of asking AI for an answer, you give it an outcome and let it work through the steps.",
+    statNumber: "4",
+    statLabel: "CAPABILITIES",
+    caption: "AI is moving from answers to actions. Here is the shift to watch.",
+    hashtags: ["#AI", "#AIAgents", "#Automation", "#Tech"],
+    score: 92
+  },
+  default: {
+    topic: "SCIENCE IN 30 SECONDS",
+    hook: "A day on Venus is longer than a year on Venus.",
+    script: "Venus rotates so slowly that one full spin takes about 243 Earth days. But it circles the Sun in about 225 Earth days. That means a Venusian day is actually longer than a Venusian year.",
+    statNumber: "243",
+    statLabel: "EARTH DAYS",
+    caption: "Space is full of facts that sound made up. This one is real.",
+    hashtags: ["#Science", "#Space", "#Facts", "#Shorts"],
+    score: 89
   }
+};
 
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a short-form video producer. Return JSON only with topic, hook, script, caption, optional statNumber and statLabel. Scripts must be factual, concise, 25-45 seconds spoken, and avoid invented statistics.',
-        },
-        {
-          role: 'user',
-          content: `Niche: ${input.niche}\nIdea: ${input.idea}\nAudience: ${input.audience ?? 'general curious audience'}`,
-        },
-      ],
-    }),
-  });
+export function demoIdea(niche = "science"): ContentIdea {
+  const normalized = niche.toLowerCase();
+  const base = normalized.includes("ai") ? demoIdeas.ai : demoIdeas.default;
+  return { ...base, id: `idea_${crypto.randomUUID()}`, niche };
+}
 
-  if (!response.ok) throw new Error(`LLM request failed: ${response.status}`);
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('LLM returned no content');
-  return ScriptResult.parse(JSON.parse(content));
+export function normalizeIdea(input: Partial<ContentIdea>, niche: string): ContentIdea {
+  const fallback = demoIdea(niche);
+  return {
+    id: input.id ?? `idea_${crypto.randomUUID()}`,
+    topic: String(input.topic ?? fallback.topic).slice(0, 80),
+    hook: String(input.hook ?? fallback.hook).slice(0, 180),
+    script: String(input.script ?? fallback.script).slice(0, 1400),
+    statNumber: String(input.statNumber ?? fallback.statNumber).slice(0, 24),
+    statLabel: String(input.statLabel ?? fallback.statLabel).slice(0, 48),
+    caption: String(input.caption ?? fallback.caption).slice(0, 500),
+    hashtags: Array.isArray(input.hashtags) ? input.hashtags.map(String).slice(0, 10) : fallback.hashtags,
+    score: Math.max(0, Math.min(100, Number(input.score ?? fallback.score))),
+    niche
+  };
 }

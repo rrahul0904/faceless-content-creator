@@ -2,18 +2,19 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: faceless_creator
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: faceless
+      POSTGRES_USER: faceless
+      POSTGRES_PASSWORD: faceless
+    ports: ["5432:5432"]
     volumes:
       - faceless_pg:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d faceless_creator"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://faceless:faceless@postgres:5432/faceless
+    ports: ["3000:3000"]
+    depends_on: [postgres]
 volumes:
   faceless_pg:

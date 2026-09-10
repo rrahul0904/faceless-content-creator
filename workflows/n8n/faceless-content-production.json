@@ -1,0 +1,11 @@
+{
+  "name": "Faceless Creator — Daily autonomous short",
+  "nodes": [
+    {"parameters":{"rule":{"interval":[{"field":"days","triggerAtHour":9}]}},"id":"fcc-0001","name":"Every day at 9am","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1.2,"position":[-400,260]},
+    {"parameters":{"assignments":{"assignments":[{"id":"1","name":"niche","value":"AI and technology","type":"string"},{"id":"2","name":"autoPublish","value":false,"type":"boolean"},{"id":"3","name":"mode","value":"presenter","type":"string"}]},"options":{}},"id":"fcc-0002","name":"Channel settings","type":"n8n-nodes-base.set","typeVersion":3.4,"position":[-160,260]},
+    {"parameters":{"method":"POST","url":"={{ $env.FACELESS_APP_URL + '/api/pipeline' }}","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Authorization","value":"={{ 'Bearer ' + $env.FACELESS_AUTOMATION_TOKEN }}"},{"name":"Content-Type","value":"application/json"}]},"sendBody":true,"specifyBody":"json","jsonBody":"={ \"niche\": $json.niche, \"mode\": $json.mode, \"autoPublish\": $json.autoPublish }","options":{"timeout":180000}},"id":"fcc-0003","name":"Start content pipeline","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[100,260]},
+    {"parameters":{"content":"## Production behavior\nThis calls the Faceless Creator orchestration API. Content generation and presenter creation happen first; the final Orshot video render runs asynchronously. Keep `autoPublish=false` for human approval.","height":220,"width":420},"id":"fcc-note","name":"Production behavior","type":"n8n-nodes-base.stickyNote","typeVersion":1,"position":[380,150]}
+  ],
+  "connections":{"Every day at 9am":{"main":[[{"node":"Channel settings","type":"main","index":0}]]},"Channel settings":{"main":[[{"node":"Start content pipeline","type":"main","index":0}]]}},
+  "settings":{"executionOrder":"v1"},"meta":{}
+}
