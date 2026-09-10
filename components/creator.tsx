@@ -27,6 +27,12 @@ const voices = [
   ['en-westindies', 'Caribbean English'],
 ];
 
+const templates = [
+  ['editorial', 'Editorial'],
+  ['signal', 'Signal'],
+  ['ember', 'Ember'],
+] as const;
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -36,6 +42,7 @@ export function Creator() {
   const [idea, setIdea] = useState('Why AI agents need memory');
   const [voice, setVoice] = useState('en-us');
   const [speechRate, setSpeechRate] = useState(165);
+  const [template, setTemplate] = useState<(typeof templates)[number][0]>('editorial');
   const [result, setResult] = useState<Script | null>(null);
   const [job, setJob] = useState<RenderJob | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
@@ -102,7 +109,7 @@ export function Creator() {
       const renderRes = await fetch('/api/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...result, voice, speechRate }),
+        body: JSON.stringify({ ...result, voice, speechRate, template }),
       });
       const renderData = await renderRes.json();
       if (!renderRes.ok) throw new Error(renderData.error ?? 'Render failed to start');
@@ -137,6 +144,7 @@ export function Creator() {
       <form className="creatorForm localCreatorForm" onSubmit={generate}>
         <label>Niche<input value={niche} onChange={(e) => setNiche(e.target.value)} /></label>
         <label>Idea<textarea value={idea} onChange={(e) => setIdea(e.target.value)} rows={3} /></label>
+        <label>Style<select value={template} onChange={(e) => setTemplate(e.target.value as (typeof templates)[number][0])}>{templates.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Voice<select value={voice} onChange={(e) => setVoice(e.target.value)}>{voices.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Speed<input type="range" min="110" max="230" value={speechRate} onChange={(e) => setSpeechRate(Number(e.target.value))} /><span className="rangeValue">{speechRate} wpm</span></label>
         <button className="button" disabled={busy}>{busy ? 'Working…' : 'Generate script'}</button>
@@ -147,12 +155,12 @@ export function Creator() {
 
       {result && (
         <div className="resultCard">
-          <div className="eyebrow">Generated draft</div>
+          <div className="eyebrow">Generated draft · {template}</div>
           <h3>{result.hook}</h3>
           <p className="muted">{result.script}</p>
           <p>{result.caption}</p>
           <div className="ctaRow">
-            <button className="button secondary" onClick={render} disabled={busy}>{busy ? stage || 'Working…' : 'Render locally'}</button>
+            <button className="button secondary" type="button" onClick={render} disabled={busy}>{busy ? stage || 'Working…' : 'Render locally'}</button>
             <button className="button ghost" type="button" onClick={copyCaption}>{copied ? 'Copied' : 'Copy caption'}</button>
           </div>
         </div>
@@ -161,7 +169,7 @@ export function Creator() {
       {videoUrl && (
         <div className="videoResult">
           <div>
-            <div className="eyebrow">Ready for review</div>
+            <div className="eyebrow">Ready for review · {template}</div>
             <h3>Rendered entirely on this machine.</h3>
           </div>
           <video src={videoUrl} controls playsInline />
