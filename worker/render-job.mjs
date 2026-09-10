@@ -25,10 +25,12 @@ try {
 
   const result = await renderFacelessVideo({
     jobId,
+    topic: String(input.topic ?? 'FACELESS'),
     hook: String(input.hook ?? ''),
     script: String(input.script ?? ''),
     voice: String(input.voice ?? 'en-us'),
     speechRate: Number(input.speechRate ?? 165),
+    template: String(input.template ?? 'editorial'),
   });
 
   await db.$transaction(async (tx) => {
