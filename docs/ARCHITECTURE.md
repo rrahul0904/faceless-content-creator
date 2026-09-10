@@ -1,45 +1,31 @@
 # Architecture
 
-## Goal
+## Design decision
 
-Faceless Content Creator turns a content idea into a reviewed, rendered and published vertical short while keeping the rendering and social vendors replaceable.
+The source tutorial places business logic directly inside n8n HTTP nodes. This project keeps n8n as a scheduler/orchestrator and moves product logic into typed application code. That makes the system testable, versioned and usable from both the dashboard and automation.
 
 ## Components
 
-- **Next.js web app**: operator dashboard, creation studio and API surface.
-- **Content service**: provider-neutral short-form script generation. It works in deterministic demo mode without an LLM key and supports an OpenAI-compatible endpoint through environment variables.
-- **PostgreSQL + Prisma**: channels, content items, render state and publications.
-- **Orshot adapter**: async Studio rendering, render-job polling and social publishing.
-- **n8n workflow**: importable recreation of the reference workflow, upgraded with a real social-draft node and an explicit human-review gate.
-- **CI**: typecheck and production build on every push and pull request.
+### Next.js application
+Owns the marketing site, private studio, authentication, orchestration endpoints, review action and provider adapters. The UI works in `DEMO_MODE=true` so the product can be evaluated without external accounts.
 
-## Content lifecycle
+### Content generation
+`lib/ai.ts` talks to an OpenAI-compatible chat-completions endpoint. No model ID is hard-coded; `LLM_MODEL` is environment configuration so a deployment can switch providers/models without code changes.
 
-`IDEA -> SCRIPTED -> RENDERING -> REVIEW -> APPROVED -> SCHEDULED -> PUBLISHED`
+### Orshot adapter
+`lib/orshot.ts` is the only module that knows Orshot API contracts. It supports AI presenter generation, async Studio rendering, render job status, social publishing, analytics and best-time insights. This boundary allows a future Remotion/FFmpeg or different AI-video provider without rewriting the product.
 
-`FAILED` is terminal until the operator retries the failed stage.
+### PostgreSQL
+Stores channel settings, content ideas/scripts, async render state, social posts and analytics snapshots. Demo mode remains usable without a database.
 
-## Production flow
+### Worker
+Video renders are not treated as ordinary HTTP requests. `worker/index.ts` reconciles queued/processing jobs against Orshot and persists terminal URLs/errors.
 
-1. Discover/import an idea.
-2. Generate a hook, spoken script and caption.
-3. Generate or select presenter/b-roll media.
-4. Start an asynchronous Orshot Studio MP4 render.
-5. Poll `/v1/studio/render-jobs/:id` or consume an Orshot webhook.
-6. Store the returned video URL and move content to `REVIEW`.
-7. Operator approves or regenerates.
-8. Publish immediately, schedule, or create a draft using Orshot social publishing.
-9. Persist platform publication IDs and metrics.
-10. Feed performance back into future topic/hook scoring.
+### n8n
+The recommended workflow only schedules and starts a content run. The original-style workflow is also included for teams that want provider calls directly in n8n.
 
-## Reliability rules
+## Approval modes
+`autoPublish=false` is the safe default. `autoPublish=true` is intended only after a channel has been tested.
 
-- Long video renders are asynchronous rather than holding an HTTP request open.
-- Vendor API keys remain server-side.
-- Social publishing is not enabled automatically for a new channel.
-- Publishing requests are designed to be persisted before execution so retries can become idempotent.
-- External provider payloads are isolated in adapters rather than spread through UI code.
-
-## Deployment model
-
-The web application can run on Vercel or as the provided standalone Docker image. PostgreSQL can be Supabase, Neon, RDS, Railway or any standard PostgreSQL service. n8n can be Cloud or self-hosted.
+## Production hardening path
+This MVP intentionally uses one workspace credential pair. A public multi-tenant SaaS should replace it with an identity provider, encrypt provider credentials per workspace, add billing/quotas, use a durable queue, introduce webhook signatures, and apply platform-specific moderation/approval policies.
