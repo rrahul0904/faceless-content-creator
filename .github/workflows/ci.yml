@@ -23,5 +23,17 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
-      - name: Render real MP4 smoke test
+      - name: Render real MP4 through worker
         run: npm run render:smoke
+      - name: Build zero-config Docker image
+        run: docker build -t faceless-content-creator:ci .
+      - name: Boot zero-config Docker image
+        run: docker run -d --name faceless-ci -p 3000:3000 faceless-content-creator:ci
+      - name: Exercise app APIs and fetch rendered MP4
+        run: npm run http:smoke
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs faceless-ci || true
+      - name: Stop smoke container
+        if: always()
+        run: docker rm -f faceless-ci || true
