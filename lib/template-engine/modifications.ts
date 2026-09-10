@@ -1,4 +1,3 @@
-import { structuredClone } from 'node:util';
 import type { TemplateDocument, TemplateElement, TemplatePage } from './schema';
 
 export type ModificationType = 'text' | 'voiceText' | 'imageUrl' | 'videoUrl' | 'backgroundColor' | 'fill' | 'color' | 'stroke';
@@ -105,6 +104,7 @@ function pageFromKey(template: TemplateDocument, rawKey: string): { page: Templa
 }
 
 function setNested(target: Record<string, unknown>, path: string[], value: unknown) {
+  if (path.length === 0) return;
   let cursor: Record<string, unknown> = target;
   for (let index = 0; index < path.length - 1; index += 1) {
     const part = path[index];
