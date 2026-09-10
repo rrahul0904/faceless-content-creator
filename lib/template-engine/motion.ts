@@ -1,4 +1,4 @@
-import type { TemplateElement, TemplatePage } from './schema';
+import type { TemplateDocument, TemplateElement, TemplatePage } from './schema';
 
 export type MotionTiming = {
   elementId: string;
@@ -50,9 +50,7 @@ export function compileMotion(page: TemplatePage): MotionCompileResult {
       warnings.push(`Motion dependency references missing element '${id}'`);
       return { elementId: id, start: 0, enterDuration: 0, exitDuration: 0 };
     }
-    if (visiting.has(id)) {
-      throw new Error(`Motion dependency cycle detected at element '${id}'`);
-    }
+    if (visiting.has(id)) throw new Error(`Motion dependency cycle detected at element '${id}'`);
     visiting.add(id);
 
     let start = directStart(element);
@@ -80,14 +78,10 @@ export function compileMotion(page: TemplatePage): MotionCompileResult {
     return timing;
   }
 
-  for (const element of page.elements) {
-    if (!visited.has(element.id)) visit(element.id);
-  }
+  for (const element of page.elements) if (!visited.has(element.id)) visit(element.id);
 
   for (const [id, timing] of Object.entries(timings)) {
-    if (timing.end !== undefined && timing.end < timing.start) {
-      warnings.push(`Element '${id}' hides before its compiled start time`);
-    }
+    if (timing.end !== undefined && timing.end < timing.start) warnings.push(`Element '${id}' hides before its compiled start time`);
   }
 
   return { timings, order, warnings };
@@ -95,4 +89,30 @@ export function compileMotion(page: TemplatePage): MotionCompileResult {
 
 export function validateTemplateMotion(pages: TemplatePage[]) {
   return pages.map((page) => ({ pageId: page.id, ...compileMotion(page) }));
+}
+
+export function materializeMotion(source: TemplateDocument) {
+  const document = structuredClone(source);
+  const warnings: string[] = [];
+
+  for (const page of document.pages) {
+    const compiled = compileMotion(page);
+    warnings.push(...compiled.warnings.map((warning) => `${page.name}: ${warning}`));
+    for (const element of page.elements) {
+      const timing = compiled.timings[element.id];
+      if (!timing) continue;
+      element.transitions = {
+        showAt: timing.start,
+        hideAt: timing.end,
+        enterType: element.transitions?.enterType ?? 'none',
+        enterDuration: element.transitions?.enterDuration ?? timing.enterDuration,
+        exitType: element.transitions?.exitType ?? 'none',
+        exitDuration: element.transitions?.exitDuration ?? timing.exitDuration,
+        easing: element.transitions?.easing ?? 'ease-out',
+        ambient: element.transitions?.ambient ?? 'none',
+      };
+    }
+  }
+
+  return { document, warnings };
 }
