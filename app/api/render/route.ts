@@ -10,6 +10,7 @@ const RenderRequest = z.object({
   caption: z.string().max(2200).optional(),
   voice: z.enum(['en-us', 'en-gb', 'en-sc', 'en', 'en-westindies']).default('en-us'),
   speechRate: z.number().int().min(110).max(230).default(165),
+  template: z.enum(['editorial', 'signal', 'ember']).default('editorial'),
   contentId: z.string().cuid().optional(),
 });
 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
         status: job.status.toLowerCase(),
         finished: false,
         engine: 'local-ffmpeg',
+        template: payload.template,
       },
     }, { status: 202 });
   } catch (error) {
