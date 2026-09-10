@@ -1,13 +1,18 @@
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { createLocalRenderJob } from '@/lib/render-queue';
+import { createLocalRenderJob, type LocalTemplate } from '@/lib/render-queue';
 
 export const runtime = 'nodejs';
 
 const Input = z.object({
   voice: z.enum(['en-us', 'en-gb', 'en-sc', 'en', 'en-westindies']).optional(),
   speechRate: z.number().int().min(110).max(230).optional(),
+  template: z.enum(['editorial', 'signal', 'ember']).optional(),
 });
+
+function localTemplate(value: string | null | undefined): LocalTemplate {
+  return value === 'signal' || value === 'ember' ? value : 'editorial';
+}
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -19,6 +24,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: false, error: 'Content must have a hook and script before rendering' }, { status: 409 });
     }
 
+    const template = input.template ?? localTemplate(content.channel.templateId);
     const job = await createLocalRenderJob({
       topic: content.topic,
       hook: content.hook,
@@ -26,6 +32,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       caption: content.caption ?? undefined,
       voice: input.voice ?? content.channel.voice ?? 'en-us',
       speechRate: input.speechRate ?? 165,
+      template,
     }, content.id);
 
     return Response.json({
@@ -35,6 +42,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         status: job.status.toLowerCase(),
         finished: false,
         engine: 'local-ffmpeg',
+        template,
       },
     }, { status: 202 });
   } catch (error) {
