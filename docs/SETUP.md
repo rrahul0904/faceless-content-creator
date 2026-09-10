@@ -1,71 +1,82 @@
 # Setup
 
-## 1. Local prerequisites
+## Recommended: Docker Compose
 
-- Node.js 22
-- Docker / Docker Compose
-- An Orshot account and API key for real renders
-- An Orshot Studio template with dynamic parameters matching your design
-
-## 2. Configure environment
-
-Copy `.env.example` to `.env.local` and fill in the values you use.
-
-Required for persistence:
-
-- `DATABASE_URL`
-
-Required for real rendering/publishing:
-
-- `ORSHOT_API_KEY`
-- `ORSHOT_TEMPLATE_ID`
-
-Optional AI script generation uses any OpenAI-compatible chat-completions endpoint:
-
-- `LLM_BASE_URL`
-- `LLM_API_KEY`
-- `LLM_MODEL`
-
-Without those LLM variables the product stays usable in deterministic demo mode.
-
-## 3. Start PostgreSQL
+The default application requires no API keys and no `.env` file.
 
 ```bash
-docker compose up -d postgres
+git clone https://github.com/rrahul0904/faceless-content-creator.git
+cd faceless-content-creator
+docker compose up --build
 ```
 
-## 4. Install and initialize
+Open `http://localhost:3000`.
+
+The container installs FFmpeg, ffprobe, eSpeak NG and DejaVu fonts, initializes the SQLite database automatically, and persists the database plus rendered media in the `faceless_data` Docker volume.
+
+## What is created automatically
+
+```text
+data/
+├── faceless.db
+├── renders/
+└── work/
+```
+
+`faceless.db` stores channels, content, render jobs, social-account metadata, publications and settings. `renders/` contains generated MP4s. `work/` contains temporary audio/caption artifacts for render jobs.
+
+## Native development
+
+If you do not want Docker, install:
+
+- Node.js 22+
+- FFmpeg and ffprobe
+- eSpeak NG
+- DejaVu fonts
+
+Then run:
 
 ```bash
 npm install
-cp .env.example .env.local
+mkdir -p data/renders data/work
 npx prisma generate
 npx prisma db push
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+No database connection string is required. Prisma uses `file:../data/faceless.db` from `prisma/schema.prisma`.
 
-## 5. Configure the Orshot template
+## Optional remote script model
 
-The default adapter sends these dynamic parameters:
+The default deterministic script engine works without credentials. If you want to use an OpenAI-compatible model, you may optionally configure:
 
-- `clip`
-- `topic`
-- `hook`
-- `script`
-- `stat_number`
-- `stat_label`
-- `handle`
+```text
+LLM_BASE_URL
+LLM_API_KEY
+LLM_MODEL
+```
 
-You can change those parameter names in `lib/orshot.ts` to match your template.
+These variables affect script generation only. They are not needed to render video.
 
-For the tutorial-compatible AI presenter flow, import `workflows/n8n/faceless-content-creator.json` into n8n and configure an HTTP Header Auth credential that sends:
+## Renderer behavior
 
-`Authorization: Bearer <ORSHOT_API_KEY>`
+A render request creates a `RenderJob` row in SQLite and starts `worker/render-job.mjs` as a detached local worker. The worker:
 
-Replace the sample presenter image, template ID and social account IDs before running it.
+1. generates a WAV narration using eSpeak NG;
+2. measures narration length using ffprobe;
+3. creates timed SRT captions;
+4. renders a 1080×1920 H.264/AAC MP4 with FFmpeg;
+5. updates the render job in SQLite;
+6. moves correlated persisted content into `REVIEW`.
 
-## 6. Safety before publishing
+Rendered videos are served by `/api/assets/:filename`.
 
-The n8n social publish node ships **disabled** and uses `status: draft`. Review the generated MP4s and platform behavior before enabling unattended publishing.
+## Social accounts
+
+YouTube, Instagram and TikTok require their own OAuth authorization. Those credentials are intentionally separate from the local renderer and are not required to create or export videos.
+
+The database already includes a `SocialAccount` model so native platform integrations can be connected without reintroducing a rendering vendor.
+
+## n8n
+
+n8n is optional. Import `workflows/n8n/faceless-content-creator.json` when you want scheduled automation. The workflow calls this application's `/api/script` and `/api/render` endpoints rather than calling Orshot directly.
