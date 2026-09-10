@@ -25,8 +25,30 @@ enum RenderStatus {
   FAILED
 }
 
+enum BrandAssetType {
+  IMAGE
+  COLOR
+  FONT
+  VIDEO
+  AUDIO
+}
+
+model Workspace {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  channels    Channel[]
+  templates   Template[]
+  brandAssets BrandAsset[]
+  social      SocialAccount[]
+}
+
 model Channel {
   id          String        @id @default(cuid())
+  workspaceId String?
+  workspace   Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name        String
   niche       String
   handle      String?
@@ -35,6 +57,58 @@ model Channel {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   contents    ContentItem[]
+
+  @@index([workspaceId])
+}
+
+model Template {
+  id           String            @id @default(cuid())
+  workspaceId  String?
+  workspace    Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name         String
+  description  String            @default("")
+  tags         Json
+  schemaVersion Int              @default(1)
+  canvasWidth  Int
+  canvasHeight Int
+  document     Json
+  thumbnailUrl String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  versions     TemplateVersion[]
+  renderJobs   RenderJob[]
+
+  @@index([workspaceId, updatedAt])
+}
+
+model TemplateVersion {
+  id        String   @id @default(cuid())
+  templateId String
+  template  Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version   Int
+  document  Json
+  createdAt DateTime @default(now())
+
+  @@unique([templateId, version])
+  @@index([templateId, createdAt])
+}
+
+model BrandAsset {
+  id          String         @id @default(cuid())
+  workspaceId String?
+  workspace   Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        BrandAssetType
+  name        String
+  url         String?
+  localPath   String?
+  mimeType    String?
+  value       String?
+  tags        Json
+  metadata    Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([workspaceId, type])
 }
 
 model ContentItem {
@@ -63,6 +137,8 @@ model ContentItem {
 
 model RenderJob {
   id         String        @id @default(cuid())
+  templateId String?
+  template   Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
   status     RenderStatus  @default(QUEUED)
   input      Json
   outputFile String?
@@ -75,21 +151,25 @@ model RenderJob {
   content    ContentItem?
 
   @@index([status, createdAt])
+  @@index([templateId, createdAt])
 }
 
 model SocialAccount {
-  id                    String   @id @default(cuid())
+  id                    String     @id @default(cuid())
+  workspaceId           String?
+  workspace             Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   platform              String
   label                 String
   username              String?
-  status                String   @default("disconnected")
+  status                String     @default("disconnected")
   accessTokenEncrypted  String?
   refreshTokenEncrypted String?
   metadata              Json?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
   @@index([platform, status])
+  @@index([workspaceId])
 }
 
 model Publication {
