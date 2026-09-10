@@ -58,6 +58,7 @@ export type RenderInput = {
   statLabel?: string;
   handle?: string;
   clipUrl?: string;
+  metadata?: string;
 };
 
 export type RenderJob = {
@@ -66,10 +67,19 @@ export type RenderJob = {
   finished: boolean;
   self?: string;
   created_at?: string;
+  result?: { data?: { content?: string } };
+  error?: unknown;
+  metadata?: string;
 };
 
 export async function startRender(input: RenderInput) {
   const env = getEnv();
+  const appBaseUrl = process.env.APP_BASE_URL?.replace(/\/$/, '');
+  const webhookSecret = process.env.WEBHOOK_SECRET;
+  const webhookUrl = appBaseUrl && webhookSecret && !appBaseUrl.includes('localhost')
+    ? `${appBaseUrl}/api/webhooks/orshot?secret=${encodeURIComponent(webhookSecret)}`
+    : undefined;
+
   return orshot<RenderJob>('/v1/studio/render', {
     method: 'POST',
     body: JSON.stringify({
@@ -87,12 +97,14 @@ export async function startRender(input: RenderInput) {
       ...(input.clipUrl
         ? { videoOptions: { fps: 30, subtitleSource: [{ page: 1, url: input.clipUrl }] } }
         : { videoOptions: { fps: 30 } }),
+      ...(webhookUrl ? { webhook_url: webhookUrl } : {}),
+      ...(input.metadata ? { metadata: input.metadata } : {}),
     }),
   });
 }
 
 export async function getRenderJob(id: number) {
-  return orshot<Record<string, unknown>>(`/v1/studio/render-jobs/${id}`, { method: 'GET' });
+  return orshot<RenderJob>(`/v1/studio/render-jobs/${id}`, { method: 'GET' });
 }
 
 export async function publishVideo(args: {
@@ -120,4 +132,33 @@ export async function publishVideo(args: {
           : { status: 'published' }),
     }),
   });
+}
+
+export type AnalyticsQuery = {
+  platform?: string;
+  accountId?: number;
+  source?: 'all' | 'orshot' | 'external';
+  from?: string;
+  to?: string;
+  refresh?: boolean;
+};
+
+function analyticsQueryString(query: AnalyticsQuery) {
+  const params = new URLSearchParams();
+  if (query.platform) params.set('platform', query.platform);
+  if (query.accountId) params.set('account_id', String(query.accountId));
+  if (query.source) params.set('source', query.source);
+  if (query.from) params.set('from', query.from);
+  if (query.to) params.set('to', query.to);
+  if (query.refresh) params.set('refresh', '1');
+  const value = params.toString();
+  return value ? `?${value}` : '';
+}
+
+export async function getSocialAnalytics(query: AnalyticsQuery = {}) {
+  return orshot<Record<string, unknown>>(`/v1/social/analytics${analyticsQueryString(query)}`, { method: 'GET' });
+}
+
+export async function getSocialInsights(query: Omit<AnalyticsQuery, 'from' | 'to'> = {}) {
+  return orshot<Record<string, unknown>>(`/v1/social/analytics/insights${analyticsQueryString(query)}`, { method: 'GET' });
 }
