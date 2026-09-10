@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { publishVideo } from '@/lib/orshot';
@@ -24,6 +25,10 @@ function extractPostId(value: unknown): number | undefined {
   return undefined;
 }
 
+function toPrismaJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
@@ -48,6 +53,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const postId = extractPostId(result);
     const nextStatus = payload.draft ? 'REVIEW' : payload.scheduledFor ? 'SCHEDULED' : 'PUBLISHED';
+    const raw = toPrismaJson(result);
 
     await db.$transaction([
       db.contentItem.update({
@@ -65,7 +71,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           accountId,
           externalId: postId ? String(postId) : null,
           status: payload.draft ? 'draft' : payload.scheduledFor ? 'scheduled' : 'processing',
-          raw: result,
+          raw,
         },
       })),
     ]);
