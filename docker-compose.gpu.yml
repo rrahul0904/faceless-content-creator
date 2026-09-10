@@ -1,0 +1,22 @@
+services:
+  faceless:
+    environment:
+      AVATAR_SERVICE_URL: http://avatar-worker:8081
+    depends_on:
+      avatar-worker:
+        condition: service_healthy
+
+  avatar-worker:
+    build:
+      context: .
+      dockerfile: services/avatar-worker/Dockerfile.gpu
+    volumes:
+      - faceless_data:/shared
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
