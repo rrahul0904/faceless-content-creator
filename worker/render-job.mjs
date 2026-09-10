@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { renderFacelessVideo } from './local-renderer.mjs';
+import { renderTemplateVideo } from './template-renderer.mjs';
 
 const db = new PrismaClient();
 const jobId = process.argv[2];
@@ -23,15 +24,27 @@ try {
     throw new Error('Render job input is invalid');
   }
 
-  const result = await renderFacelessVideo({
-    jobId,
-    topic: String(input.topic ?? 'FACELESS'),
-    hook: String(input.hook ?? ''),
-    script: String(input.script ?? ''),
-    voice: String(input.voice ?? 'en-us'),
-    speechRate: Number(input.speechRate ?? 165),
-    template: String(input.template ?? 'editorial'),
-  });
+  let result;
+  if (input.kind === 'template-v1') {
+    if (!input.document || typeof input.document !== 'object' || Array.isArray(input.document)) {
+      throw new Error('Template render job document is invalid');
+    }
+    result = await renderTemplateVideo({
+      jobId,
+      document: input.document,
+      response: input.response && typeof input.response === 'object' && !Array.isArray(input.response) ? input.response : {},
+    });
+  } else {
+    result = await renderFacelessVideo({
+      jobId,
+      topic: String(input.topic ?? 'FACELESS'),
+      hook: String(input.hook ?? ''),
+      script: String(input.script ?? ''),
+      voice: String(input.voice ?? 'en-us'),
+      speechRate: Number(input.speechRate ?? 165),
+      template: String(input.template ?? 'editorial'),
+    });
+  }
 
   await db.$transaction(async (tx) => {
     await tx.renderJob.update({
