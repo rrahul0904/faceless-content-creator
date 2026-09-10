@@ -31,7 +31,7 @@ model Channel {
   niche       String
   handle      String?
   voice       String?       @default("en-us")
-  templateId  String?       @default("kinetic-fact")
+  templateId  String?       @default("editorial")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   contents    ContentItem[]
