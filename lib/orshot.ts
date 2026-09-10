@@ -29,6 +29,19 @@ async function orshot<T>(path: string, init: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type SocialAccount = {
+  id: number;
+  platform: string;
+  account_name?: string;
+  account_username?: string;
+  account_avatar?: string;
+  requires_reconnect?: boolean;
+};
+
+export async function listSocialAccounts(includeHealth = true) {
+  return orshot<{ data: SocialAccount[] }>(`/v1/social/accounts${includeHealth ? '?include_health=true' : ''}`, { method: 'GET' });
+}
+
 export type PresenterInput = {
   imageRef: string;
   script: string;
