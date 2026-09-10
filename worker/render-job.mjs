@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { renderAIVideo } from './ai-video.mjs';
 import { renderFacelessVideo } from './local-renderer.mjs';
 import { renderTemplateVideo } from './template-renderer.mjs';
 
@@ -34,6 +35,8 @@ try {
       document: input.document,
       response: input.response && typeof input.response === 'object' && !Array.isArray(input.response) ? input.response : {},
     });
+  } else if (input.kind === 'ai-video-v1') {
+    result = await renderAIVideo({ jobId, input });
   } else {
     result = await renderFacelessVideo({
       jobId,
