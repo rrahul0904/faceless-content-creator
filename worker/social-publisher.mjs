@@ -1,7 +1,7 @@
 import { createDecipheriv, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const db = new PrismaClient();
 const MAX_BUFFERED_VIDEO = 256 * 1024 * 1024;
@@ -26,6 +26,12 @@ function decryptToken(value) {
 
 function metadataOf(account) {
   return account.metadata && typeof account.metadata === 'object' && !Array.isArray(account.metadata) ? account.metadata : {};
+}
+
+function requestOf(publication) {
+  const raw = publication.raw && typeof publication.raw === 'object' && !Array.isArray(publication.raw) ? publication.raw : {};
+  const request = raw.request && typeof raw.request === 'object' && !Array.isArray(raw.request) ? raw.request : {};
+  return { draft: Boolean(request.draft) };
 }
 
 function absoluteAssetUrl(videoUrl) {
@@ -63,18 +69,19 @@ function captionFor(content) {
   return String(content.caption || content.script || content.topic || '').trim().slice(0, 5000);
 }
 
-async function publishYouTube(account, content, accessToken) {
+async function publishYouTube(account, content, accessToken, request) {
   const bytes = await videoBytes(content.videoUrl);
   const boundary = `faceless_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  const accountMetadata = metadataOf(account);
   const metadata = {
     snippet: {
       title: titleFor(content),
       description: captionFor(content),
-      categoryId: String(metadataOf(account).categoryId || '22'),
+      categoryId: String(accountMetadata.categoryId || '22'),
     },
     status: {
-      privacyStatus: String(metadataOf(account).privacyStatus || 'private'),
-      selfDeclaredMadeForKids: Boolean(metadataOf(account).madeForKids || false),
+      privacyStatus: request.draft ? 'private' : String(accountMetadata.privacyStatus || 'private'),
+      selfDeclaredMadeForKids: Boolean(accountMetadata.madeForKids || false),
     },
   };
   const header = Buffer.from(
@@ -95,7 +102,7 @@ async function publishYouTube(account, content, accessToken) {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.id) throw new Error(`YouTube upload failed (${response.status}): ${JSON.stringify(result)}`);
-  return { externalId: String(result.id), raw: result };
+  return { externalId: String(result.id), raw: result, status: request.draft ? 'UPLOADED_DRAFT' : 'PUBLISHED' };
 }
 
 function instagramBase(account) {
@@ -105,7 +112,8 @@ function instagramBase(account) {
   return `https://${host}/${version}`;
 }
 
-async function publishInstagram(account, content, accessToken) {
+async function publishInstagram(account, content, accessToken, request) {
+  if (request.draft) throw new Error('Instagram Reels API does not expose a user-visible draft upload; publish with draft=false after approval');
   const metadata = metadataOf(account);
   const userId = String(metadata.igUserId || metadata.userId || '').trim();
   if (!userId) throw new Error('Instagram account metadata must contain igUserId');
@@ -149,28 +157,30 @@ async function publishInstagram(account, content, accessToken) {
   });
   const published = await publishResponse.json().catch(() => ({}));
   if (!publishResponse.ok || !published.id) throw new Error(`Instagram publish failed (${publishResponse.status}): ${JSON.stringify(published)}`);
-  return { externalId: String(published.id), raw: { containerId, status: statusPayload, published } };
+  return { externalId: String(published.id), raw: { containerId, status: statusPayload, published }, status: 'PUBLISHED' };
 }
 
-async function publishTikTok(account, content, accessToken) {
+async function publishTikTok(account, content, accessToken, request) {
   const metadata = metadataOf(account);
-  const privacy = String(metadata.privacyLevel || 'SELF_ONLY');
-  const payload = {
-    post_info: {
-      title: captionFor(content).slice(0, 2200),
-      privacy_level: privacy,
-      disable_duet: Boolean(metadata.disableDuet || false),
-      disable_comment: Boolean(metadata.disableComment || false),
-      disable_stitch: Boolean(metadata.disableStitch || false),
-      video_cover_timestamp_ms: Number(metadata.coverTimestampMs || 1000),
-      is_aigc: metadata.isAigc !== false,
-    },
-    source_info: {
-      source: 'PULL_FROM_URL',
-      video_url: absoluteAssetUrl(content.videoUrl),
-    },
-  };
-  const response = await fetch('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+  const sourceInfo = { source: 'PULL_FROM_URL', video_url: absoluteAssetUrl(content.videoUrl) };
+  const endpoint = request.draft
+    ? 'https://open.tiktokapis.com/v2/post/publish/inbox/video/init/'
+    : 'https://open.tiktokapis.com/v2/post/publish/video/init/';
+  const payload = request.draft
+    ? { source_info: sourceInfo }
+    : {
+        post_info: {
+          title: captionFor(content).slice(0, 2200),
+          privacy_level: String(metadata.privacyLevel || 'SELF_ONLY'),
+          disable_duet: Boolean(metadata.disableDuet || false),
+          disable_comment: Boolean(metadata.disableComment || false),
+          disable_stitch: Boolean(metadata.disableStitch || false),
+          video_cover_timestamp_ms: Number(metadata.coverTimestampMs || 1000),
+          is_aigc: metadata.isAigc !== false,
+        },
+        source_info: sourceInfo,
+      };
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -183,9 +193,9 @@ async function publishTikTok(account, content, accessToken) {
   const errorCode = result?.error?.code;
   const publishId = result?.data?.publish_id;
   if (!response.ok || (errorCode && errorCode !== 'ok') || !publishId) {
-    throw new Error(`TikTok publish initialization failed (${response.status}): ${JSON.stringify(result)}`);
+    throw new Error(`TikTok ${request.draft ? 'draft upload' : 'publish initialization'} failed (${response.status}): ${JSON.stringify(result)}`);
   }
-  return { externalId: String(publishId), raw: result };
+  return { externalId: String(publishId), raw: result, status: request.draft ? 'UPLOADED_DRAFT' : 'PUBLISHED' };
 }
 
 async function updateContentState(contentId) {
@@ -196,8 +206,8 @@ async function updateContentState(contentId) {
     await db.contentItem.update({ where: { id: contentId }, data: { status: 'PUBLISHED', publishedAt: new Date() } });
     return;
   }
-  if (statuses.some((status) => status === 'QUEUED' || status === 'RUNNING' || status === 'SCHEDULED')) return;
-  if (statuses.some((status) => status === 'PUBLISHED')) {
+  if (statuses.some((status) => ['QUEUED', 'RUNNING', 'SCHEDULED', 'RETRY'].includes(status))) return;
+  if (statuses.some((status) => status === 'PUBLISHED' || status === 'UPLOADED_DRAFT')) {
     await db.contentItem.update({ where: { id: contentId }, data: { status: 'APPROVED' } });
     return;
   }
@@ -223,25 +233,26 @@ export async function publishPublication(publicationId) {
     if (account.status !== 'connected') throw new Error(`Target social account is ${account.status}`);
     if (!publication.content.videoUrl) throw new Error('Content does not have a rendered video');
     const accessToken = decryptToken(account.accessTokenEncrypted);
+    const request = requestOf(publication);
 
     let result;
-    if (account.platform === 'youtube') result = await publishYouTube(account, publication.content, accessToken);
-    else if (account.platform === 'instagram') result = await publishInstagram(account, publication.content, accessToken);
-    else if (account.platform === 'tiktok') result = await publishTikTok(account, publication.content, accessToken);
+    if (account.platform === 'youtube') result = await publishYouTube(account, publication.content, accessToken, request);
+    else if (account.platform === 'instagram') result = await publishInstagram(account, publication.content, accessToken, request);
+    else if (account.platform === 'tiktok') result = await publishTikTok(account, publication.content, accessToken, request);
     else throw new Error(`Unsupported social platform: ${account.platform}`);
 
     await db.publication.update({
       where: { id: publicationId },
       data: {
-        status: 'PUBLISHED',
+        status: result.status,
         externalId: result.externalId,
-        raw: JSON.parse(JSON.stringify(result.raw)),
-        publishedAt: new Date(),
+        raw: JSON.parse(JSON.stringify({ request, response: result.raw })),
+        publishedAt: result.status === 'PUBLISHED' ? new Date() : null,
         lastError: null,
       },
     });
     await updateContentState(publication.contentId);
-    return { ok: true, publicationId, platform: account.platform, externalId: result.externalId };
+    return { ok: true, publicationId, platform: account.platform, externalId: result.externalId, status: result.status };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await db.publication.update({ where: { id: publicationId }, data: { status: 'FAILED', lastError: message } });
