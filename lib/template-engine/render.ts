@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { startRenderWorker } from '@/lib/render-worker';
 import { applyModifications } from './modifications';
+import { resizeTemplate } from './resize';
 import { TemplateDocumentSchema } from './schema';
 
 function asJson(value: unknown): Prisma.InputJsonValue {
@@ -22,18 +23,20 @@ export async function queueTemplateRender(templateId: string, request: TemplateR
   if (!stored) return null;
 
   const parsed = TemplateDocumentSchema.parse(stored.document);
-  const { document, warnings } = applyModifications(parsed, request.modifications ?? {});
+  const modified = applyModifications(parsed, request.modifications ?? {});
+  const requestedSize = request.response?.size;
+  const document = requestedSize ? resizeTemplate(modified.document, requestedSize) : modified.document;
 
   const input = {
     kind: 'template-v1',
     templateId,
     document,
     modifications: request.modifications ?? {},
-    warnings,
+    warnings: modified.warnings,
     response: {
       format: request.response?.format ?? 'mp4',
       mode: 'async',
-      size: request.response?.size ?? null,
+      size: requestedSize ?? null,
     },
   };
 
@@ -46,5 +49,5 @@ export async function queueTemplateRender(templateId: string, request: TemplateR
   });
 
   startRenderWorker(job.id);
-  return { job, warnings };
+  return { job, warnings: modified.warnings };
 }
