@@ -3,6 +3,8 @@ import path from 'node:path';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 
+export type LocalTemplate = 'editorial' | 'signal' | 'ember';
+
 export type LocalRenderInput = {
   hook: string;
   script: string;
@@ -10,6 +12,7 @@ export type LocalRenderInput = {
   caption?: string;
   voice?: string;
   speechRate?: number;
+  template?: LocalTemplate;
 };
 
 function startDetachedWorker(jobId: string) {
@@ -31,6 +34,7 @@ export async function createLocalRenderJob(input: LocalRenderInput, contentId?: 
     caption: input.caption ?? '',
     voice: input.voice ?? 'en-us',
     speechRate: input.speechRate ?? 165,
+    template: input.template ?? 'editorial',
   } satisfies Prisma.InputJsonObject;
 
   const job = await db.renderJob.create({
