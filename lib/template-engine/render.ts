@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { startRenderWorker } from '@/lib/render-worker';
 import { applyModifications } from './modifications';
+import { materializeMotion } from './motion';
 import { resizeTemplate } from './resize';
 import { TemplateDocumentSchema } from './schema';
 
@@ -25,14 +26,16 @@ export async function queueTemplateRender(templateId: string, request: TemplateR
   const parsed = TemplateDocumentSchema.parse(stored.document);
   const modified = applyModifications(parsed, request.modifications ?? {});
   const requestedSize = request.response?.size;
-  const document = requestedSize ? resizeTemplate(modified.document, requestedSize) : modified.document;
+  const resized = requestedSize ? resizeTemplate(modified.document, requestedSize) : modified.document;
+  const motion = materializeMotion(resized);
+  const warnings = [...modified.warnings, ...motion.warnings];
 
   const input = {
     kind: 'template-v1',
     templateId,
-    document,
+    document: motion.document,
     modifications: request.modifications ?? {},
-    warnings: modified.warnings,
+    warnings,
     response: {
       format: request.response?.format ?? 'mp4',
       mode: 'async',
@@ -49,5 +52,5 @@ export async function queueTemplateRender(templateId: string, request: TemplateR
   });
 
   startRenderWorker(job.id);
-  return { job, warnings: modified.warnings };
+  return { job, warnings };
 }
