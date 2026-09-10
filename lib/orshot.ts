@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const env = z.object({
   ORSHOT_API_KEY: z.string().min(1),
-  ORSHOT_TEMPLATE_ID: z.string().min(1),
+  ORSHOT_TEMPLATE_ID: z.coerce.number().int().positive(),
   ORSHOT_BASE_URL: z.string().url().default('https://api.orshot.com'),
 }).parse({
   ORSHOT_API_KEY: process.env.ORSHOT_API_KEY,
@@ -34,12 +34,20 @@ export type RenderInput = {
   clipUrl?: string;
 };
 
+export type RenderJob = {
+  id: number;
+  status: string;
+  finished: boolean;
+  self?: string;
+  created_at?: string;
+};
+
 export async function startRender(input: RenderInput) {
-  return orshot<{ id?: string; jobId?: string; status?: string }>('/v1/studio/render', {
+  return orshot<RenderJob>('/v1/studio/render', {
     method: 'POST',
     body: JSON.stringify({
       templateId: env.ORSHOT_TEMPLATE_ID,
-      response: { mode: 'async' },
+      response: { mode: 'async', type: 'url', format: 'mp4' },
       modifications: {
         hook: input.hook,
         topic: input.topic,
@@ -53,14 +61,30 @@ export async function startRender(input: RenderInput) {
   });
 }
 
-export async function publishVideo(args: { videoUrl: string; caption: string; socialAccountIds: string[]; scheduledAt?: string }) {
-  return orshot('/v1/social/publish', {
+export async function getRenderJob(id: number) {
+  return orshot<Record<string, unknown>>(`/v1/studio/render-jobs/${id}`, { method: 'GET' });
+}
+
+export async function publishVideo(args: {
+  videoUrl: string;
+  caption: string;
+  accountIds: number[];
+  scheduledFor?: string;
+  timezone?: string;
+}) {
+  return orshot<Record<string, unknown>>('/v1/social/publish', {
     method: 'POST',
     body: JSON.stringify({
-      mediaUrl: args.videoUrl,
-      caption: args.caption,
-      socialAccountIds: args.socialAccountIds,
-      ...(args.scheduledAt ? { scheduledAt: args.scheduledAt } : {}),
+      accounts: args.accountIds,
+      content: args.caption,
+      media_url: args.videoUrl,
+      ...(args.scheduledFor
+        ? {
+            status: 'scheduled',
+            scheduled_for: args.scheduledFor,
+            timezone: args.timezone ?? 'America/New_York',
+          }
+        : { status: 'published' }),
     }),
   });
 }
