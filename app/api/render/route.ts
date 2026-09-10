@@ -1,8 +1,5 @@
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { db } from '@/lib/db';
+import { createLocalRenderJob } from '@/lib/render-queue';
 
 export const runtime = 'nodejs';
 
@@ -16,47 +13,16 @@ const RenderRequest = z.object({
   contentId: z.string().cuid().optional(),
 });
 
-function startDetachedWorker(jobId: string) {
-  const workerPath = path.join(process.cwd(), 'worker', 'render-job.mjs');
-  const child = spawn(process.execPath, [workerPath, jobId], {
-    cwd: process.cwd(),
-    detached: true,
-    stdio: 'ignore',
-    env: process.env,
-  });
-  child.unref();
-}
-
 export async function POST(request: Request) {
   try {
     const payload = RenderRequest.parse(await request.json());
-    const input = {
-      hook: payload.hook,
-      script: payload.script,
-      topic: payload.topic,
-      caption: payload.caption ?? '',
-      voice: payload.voice,
-      speechRate: payload.speechRate,
-    } satisfies Prisma.InputJsonObject;
-
-    const job = await db.renderJob.create({
-      data: { input, status: 'QUEUED' },
-    });
-
-    if (payload.contentId) {
-      await db.contentItem.update({
-        where: { id: payload.contentId },
-        data: { renderJobId: job.id, status: 'RENDERING' },
-      });
-    }
-
-    startDetachedWorker(job.id);
+    const job = await createLocalRenderJob(payload, payload.contentId);
 
     return Response.json({
       ok: true,
       job: {
         id: job.id,
-        status: job.status,
+        status: job.status.toLowerCase(),
         finished: false,
         engine: 'local-ffmpeg',
       },
