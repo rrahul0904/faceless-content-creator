@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:../data/faceless.db"
 }
 
 enum ContentStatus {
@@ -18,13 +18,20 @@ enum ContentStatus {
   FAILED
 }
 
+enum RenderStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 model Channel {
   id          String        @id @default(cuid())
   name        String
   niche       String
   handle      String?
-  voice       String?
-  templateId  String?
+  voice       String?       @default("en-us")
+  templateId  String?       @default("kinetic-fact")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   contents    ContentItem[]
@@ -42,7 +49,8 @@ model ContentItem {
   statNumber   String?
   statLabel    String?
   status       ContentStatus @default(IDEA)
-  renderJobId  Int?
+  renderJobId  String?       @unique
+  renderJob    RenderJob?    @relation(fields: [renderJobId], references: [id], onDelete: SetNull)
   videoUrl     String?
   scheduledFor DateTime?
   publishedAt  DateTime?
@@ -53,12 +61,43 @@ model ContentItem {
   @@index([channelId, status])
 }
 
+model RenderJob {
+  id         String        @id @default(cuid())
+  status     RenderStatus  @default(QUEUED)
+  input      Json
+  outputFile String?
+  videoUrl   String?
+  error      String?
+  createdAt  DateTime      @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  updatedAt  DateTime      @updatedAt
+  content    ContentItem?
+
+  @@index([status, createdAt])
+}
+
+model SocialAccount {
+  id                    String   @id @default(cuid())
+  platform              String
+  label                 String
+  username              String?
+  status                String   @default("disconnected")
+  accessTokenEncrypted  String?
+  refreshTokenEncrypted String?
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([platform, status])
+}
+
 model Publication {
   id          String      @id @default(cuid())
   contentId   String
   content     ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
   platform    String
-  accountId   Int
+  accountId   String
   externalId  String?
   status      String
   views       Int?
@@ -72,4 +111,12 @@ model Publication {
   updatedAt   DateTime    @updatedAt
 
   @@index([contentId, platform])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  encrypted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
