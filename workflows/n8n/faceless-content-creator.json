@@ -1,0 +1,115 @@
+{
+  "name": "Faceless Content Creator — Daily short + publish",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [ { "field": "days", "triggerAtHour": 9 } ] } },
+      "id": "fcc-001",
+      "name": "Every day at 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-520, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "1", "name": "topic", "value": "AI EXPLAINED", "type": "string" },
+            { "id": "2", "name": "hook", "value": "Why AI agents need memory", "type": "string" },
+            { "id": "3", "name": "script", "value": "AI agents without memory repeatedly rediscover the same context. A useful memory layer stores durable facts, retrieves only what matters, and keeps the model focused on the current task. That is what turns a one-shot chatbot into a system that can continue work across sessions.", "type": "string" },
+            { "id": "4", "name": "stat_number", "value": "3", "type": "string" },
+            { "id": "5", "name": "stat_label", "value": "LAYERS", "type": "string" },
+            { "id": "6", "name": "handle", "value": "@faceless", "type": "string" },
+            { "id": "7", "name": "presenter_image", "value": "https://your-cdn.example/presenter.jpg", "type": "string" },
+            { "id": "8", "name": "voice_id", "value": "hpp4J3VqNfWAUOO0d1Us", "type": "string" },
+            { "id": "9", "name": "template_id", "value": 19503, "type": "number" },
+            { "id": "10", "name": "social_accounts", "value": "15,22", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fcc-002",
+      "name": "Content payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-290, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.orshot.com/v1/ai/video",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Content-Type", "value": "application/json" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"imageRef\": \"{{ $json.presenter_image }}\",\n  \"script\": \"{{ $json.script }}\",\n  \"voice\": \"{{ $json.voice_id }}\",\n  \"consent\": true,\n  \"aspect\": \"9:16\",\n  \"sync\": true\n}",
+        "options": {}
+      },
+      "id": "fcc-003",
+      "name": "Generate presenter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-40, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.orshot.com/v1/studio/render",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Content-Type", "value": "application/json" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"templateId\": {{ $('Content payload').item.json.template_id }},\n  \"response\": { \"type\": \"url\", \"format\": \"mp4\" },\n  \"modifications\": {\n    \"clip\": \"{{ $json.url }}\",\n    \"topic\": \"{{ $('Content payload').item.json.topic }}\",\n    \"hook\": \"{{ $('Content payload').item.json.hook }}\",\n    \"stat_number\": \"{{ $('Content payload').item.json.stat_number }}\",\n    \"stat_label\": \"{{ $('Content payload').item.json.stat_label }}\",\n    \"handle\": \"{{ $('Content payload').item.json.handle }}\"\n  },\n  \"videoOptions\": {\n    \"fps\": 30,\n    \"subtitleSource\": [{ \"page\": 1, \"url\": \"{{ $json.url }}\" }]\n  }\n}",
+        "options": {}
+      },
+      "id": "fcc-004",
+      "name": "Render short",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "content": "## Human review gate\nPreview the returned MP4 before enabling the Publish node. The workflow intentionally stops here by default so a new channel does not auto-post unreviewed content.",
+        "height": 180,
+        "width": 320
+      },
+      "id": "fcc-005",
+      "name": "Review before publish",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [470, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.orshot.com/v1/social/publish",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Content-Type", "value": "application/json" } ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"accounts\": {{ $('Content payload').item.json.social_accounts.split(',').map(Number) }},\n  \"content\": \"{{ $('Content payload').item.json.hook }} #shorts\",\n  \"media_url\": \"{{ $json.url }}\",\n  \"status\": \"draft\"\n}",
+        "options": {}
+      },
+      "id": "fcc-006",
+      "name": "Save social draft",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Every day at 9am": { "main": [[{ "node": "Content payload", "type": "main", "index": 0 }]] },
+    "Content payload": { "main": [[{ "node": "Generate presenter", "type": "main", "index": 0 }]] },
+    "Generate presenter": { "main": [[{ "node": "Render short", "type": "main", "index": 0 }]] },
+    "Render short": { "main": [[{ "node": "Save social draft", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {}
+}
