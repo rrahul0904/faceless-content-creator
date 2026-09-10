@@ -9,6 +9,7 @@ const RenderRequest = z.object({
   statLabel: z.string().optional(),
   handle: z.string().optional(),
   clipUrl: z.string().url().optional(),
+  metadata: z.string().optional(),
 });
 
 export async function POST(request: Request) {
