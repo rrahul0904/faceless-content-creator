@@ -7,6 +7,7 @@ const PublishRequest = z.object({
   accountIds: z.array(z.number().int().positive()).min(1),
   scheduledFor: z.string().datetime().optional(),
   timezone: z.string().optional(),
+  draft: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
