@@ -15,6 +15,15 @@ function asJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+function normalizePresenterRef(imageRef: string) {
+  if (imageRef.startsWith('/api/media/')) {
+    const filename = decodeURIComponent(imageRef.slice('/api/media/'.length));
+    if (!/^[a-zA-Z0-9._-]+$/.test(filename)) throw new Error('Presenter media reference is invalid');
+    return `/shared/uploads/${filename}`;
+  }
+  return imageRef;
+}
+
 export async function queueAIVideo(input: AIVideoRequest) {
   const job = await db.renderJob.create({
     data: {
@@ -22,7 +31,7 @@ export async function queueAIVideo(input: AIVideoRequest) {
       input: asJson({
         kind: 'ai-video-v1',
         provider: input.provider ?? 'musetalk',
-        imageRef: input.imageRef,
+        imageRef: normalizePresenterRef(input.imageRef),
         script: input.script,
         voice: input.voice ?? 'af_heart',
         consent: input.consent,
