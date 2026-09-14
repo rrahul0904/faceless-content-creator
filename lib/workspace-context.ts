@@ -1,3 +1,4 @@
+import { authenticateWorkspaceApiKey, bearerApiKey } from '@/lib/api-keys';
 import { db } from '@/lib/db';
 
 export const LOCAL_WORKSPACE_SLUG = 'local';
@@ -10,6 +11,14 @@ export class WorkspaceResolutionError extends Error {
     this.name = 'WorkspaceResolutionError';
     this.status = status;
   }
+}
+
+function authMode() {
+  return process.env.FCC_AUTH_MODE === 'api-key' ? 'api-key' : 'local';
+}
+
+function trustedWorkspaceHeaders() {
+  return process.env.TRUST_WORKSPACE_HEADERS === 'true' || process.env.NODE_ENV !== 'production';
 }
 
 export async function ensureLocalWorkspace() {
@@ -39,8 +48,22 @@ export async function ensureLocalWorkspace() {
 }
 
 export async function resolveWorkspace(request?: Request) {
+  const apiKey = bearerApiKey(request);
+  if (apiKey) {
+    const authenticated = await authenticateWorkspaceApiKey(apiKey);
+    if (!authenticated) throw new WorkspaceResolutionError('Invalid, expired, or revoked API key', 401);
+    return authenticated.workspace;
+  }
+
+  if (authMode() === 'api-key') {
+    throw new WorkspaceResolutionError('A workspace API key is required', 401);
+  }
+
   const workspaceId = request?.headers.get('x-workspace-id')?.trim();
   const workspaceSlug = request?.headers.get('x-workspace-slug')?.trim();
+  if ((workspaceId || workspaceSlug) && !trustedWorkspaceHeaders()) {
+    throw new WorkspaceResolutionError('Workspace selector headers are disabled in production', 403);
+  }
 
   if (workspaceId) {
     const workspace = await db.workspace.findUnique({ where: { id: workspaceId } });
