@@ -15,6 +15,18 @@ export type LocalRenderInput = {
 };
 
 export async function createLocalRenderJob(input: LocalRenderInput, contentId?: string, workspaceId?: string) {
+  let content: { id: string; channel: { workspaceId: string | null } } | null = null;
+  if (contentId) {
+    content = await db.contentItem.findUnique({
+      where: { id: contentId },
+      select: { id: true, channel: { select: { workspaceId: true } } },
+    });
+    if (!content) throw new Error('Content item not found');
+    if (workspaceId && content.channel.workspaceId && content.channel.workspaceId !== workspaceId) {
+      throw new Error('Content item belongs to a different workspace');
+    }
+  }
+
   const renderInput = {
     kind: 'legacy-local',
     hook: input.hook,
@@ -30,17 +42,9 @@ export async function createLocalRenderJob(input: LocalRenderInput, contentId?: 
     data: { workspaceId, input: renderInput, status: 'QUEUED' },
   });
 
-  if (contentId) {
-    const content = await db.contentItem.findUnique({
-      where: { id: contentId },
-      include: { channel: { select: { workspaceId: true } } },
-    });
-    if (!content) throw new Error('Content item not found');
-    if (workspaceId && content.channel.workspaceId && content.channel.workspaceId !== workspaceId) {
-      throw new Error('Content item belongs to a different workspace');
-    }
+  if (content) {
     await db.contentItem.update({
-      where: { id: contentId },
+      where: { id: content.id },
       data: { renderJobId: job.id, status: 'RENDERING' },
     });
   }
