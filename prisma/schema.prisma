@@ -23,6 +23,7 @@ enum RenderStatus {
   RUNNING
   SUCCEEDED
   FAILED
+  CANCELLED
 }
 
 enum BrandAssetType {
@@ -137,19 +138,20 @@ model ContentItem {
 }
 
 model RenderJob {
-  id         String        @id @default(cuid())
-  templateId String?
-  template   Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  status     RenderStatus  @default(QUEUED)
-  input      Json
-  outputFile String?
-  videoUrl   String?
-  error      String?
-  createdAt  DateTime      @default(now())
-  startedAt  DateTime?
-  finishedAt DateTime?
-  updatedAt  DateTime      @updatedAt
-  content    ContentItem?
+  id              String        @id @default(cuid())
+  templateId      String?
+  template        Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  status          RenderStatus  @default(QUEUED)
+  cancelRequested Boolean       @default(false)
+  input           Json
+  outputFile      String?
+  videoUrl        String?
+  error           String?
+  createdAt       DateTime      @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  updatedAt       DateTime      @updatedAt
+  content         ContentItem?
 
   @@index([status, createdAt])
   @@index([templateId, createdAt])
