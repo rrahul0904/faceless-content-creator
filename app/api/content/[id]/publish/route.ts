@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { startPublishWorker } from '@/lib/publish-worker';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 const Input = z.object({
   accountIds: z.array(z.string().cuid()).min(1).max(10),
@@ -10,16 +11,22 @@ const Input = z.object({
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const workspace = await resolveWorkspace(request);
     const { id } = await context.params;
     const payload = Input.parse(await request.json());
-    const content = await db.contentItem.findUnique({ where: { id }, include: { channel: true } });
+    const content = await db.contentItem.findFirst({
+      where: { id, channel: { workspaceId: workspace.id } },
+      include: { channel: true },
+    });
     if (!content) return Response.json({ ok: false, error: 'Content not found' }, { status: 404 });
     if (!content.videoUrl) {
       return Response.json({ ok: false, error: 'Content must have a rendered video before publishing' }, { status: 409 });
     }
 
     const uniqueIds = [...new Set(payload.accountIds)];
-    const accounts = await db.socialAccount.findMany({ where: { id: { in: uniqueIds } } });
+    const accounts = await db.socialAccount.findMany({
+      where: { id: { in: uniqueIds }, workspaceId: workspace.id },
+    });
     if (accounts.length !== uniqueIds.length) {
       return Response.json({ ok: false, error: 'One or more social accounts were not found' }, { status: 404 });
     }
@@ -67,6 +74,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     return Response.json({
       ok: true,
+      workspaceId: workspace.id,
       mode: isScheduled ? 'scheduled' : 'async',
       contentId: content.id,
       scheduledFor: isScheduled ? scheduledFor?.toISOString() : null,
@@ -78,6 +86,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       })),
     }, { status: 202 });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to queue publication';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
