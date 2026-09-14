@@ -13,7 +13,7 @@ export class WorkspaceResolutionError extends Error {
 }
 
 export async function ensureLocalWorkspace() {
-  return db.workspace.upsert({
+  const workspace = await db.workspace.upsert({
     where: { slug: LOCAL_WORKSPACE_SLUG },
     update: {},
     create: {
@@ -23,6 +23,19 @@ export async function ensureLocalWorkspace() {
       status: 'ACTIVE',
     },
   });
+
+  // Upgrade existing single-user installs without making their data disappear when
+  // tenant filters become active. These updates are idempotent and only claim rows
+  // that predate workspace ownership.
+  await db.$transaction([
+    db.channel.updateMany({ where: { workspaceId: null }, data: { workspaceId: workspace.id } }),
+    db.template.updateMany({ where: { workspaceId: null }, data: { workspaceId: workspace.id } }),
+    db.brandAsset.updateMany({ where: { workspaceId: null }, data: { workspaceId: workspace.id } }),
+    db.socialAccount.updateMany({ where: { workspaceId: null }, data: { workspaceId: workspace.id } }),
+    db.renderJob.updateMany({ where: { workspaceId: null }, data: { workspaceId: workspace.id } }),
+  ]);
+
+  return workspace;
 }
 
 export async function resolveWorkspace(request?: Request) {
