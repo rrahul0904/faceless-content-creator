@@ -21,6 +21,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm install
+      - name: Capture generated npm lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock-generated
+          path: package-lock.json
+          retention-days: 1
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
