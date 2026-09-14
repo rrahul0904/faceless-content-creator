@@ -10,13 +10,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: false, error: 'Render job not found' }, { status: 404 });
     }
 
+    const finished = job.status === 'SUCCEEDED' || job.status === 'FAILED' || job.status === 'CANCELLED';
     return Response.json({
       ok: true,
       job: {
         id: job.id,
         status: job.status.toLowerCase(),
-        finished: job.status === 'SUCCEEDED' || job.status === 'FAILED',
-        result: job.videoUrl ? { data: { content: job.videoUrl } } : undefined,
+        finished,
+        cancellable: !finished,
+        cancel_requested: job.cancelRequested,
+        result: job.status === 'SUCCEEDED' && job.videoUrl ? { data: { content: job.videoUrl } } : undefined,
         error: job.error ?? undefined,
         created_at: job.createdAt.toISOString(),
         started_at: job.startedAt?.toISOString(),
