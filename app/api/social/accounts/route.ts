@@ -2,9 +2,9 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { encryptToken, tokenStorageReady } from '@/lib/token-crypto';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 const CreateAccount = z.object({
-  workspaceId: z.string().cuid().optional(),
   platform: z.enum(['youtube', 'instagram', 'tiktok']),
   label: z.string().min(1).max(120),
   username: z.string().max(120).optional(),
@@ -15,13 +15,14 @@ const CreateAccount = z.object({
 
 export async function GET(request: Request) {
   try {
-    const workspaceId = new URL(request.url).searchParams.get('workspaceId') || undefined;
+    const workspace = await resolveWorkspace(request);
     const accounts = await db.socialAccount.findMany({
-      where: workspaceId ? { workspaceId } : undefined,
+      where: { workspaceId: workspace.id },
       orderBy: { createdAt: 'asc' },
     });
     return Response.json({
       ok: true,
+      workspaceId: workspace.id,
       tokenStorageReady: tokenStorageReady(),
       accounts: accounts.map((account) => ({
         id: account.id,
@@ -37,6 +38,8 @@ export async function GET(request: Request) {
       })),
     });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to load social accounts';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
@@ -44,6 +47,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const workspace = await resolveWorkspace(request);
     const payload = CreateAccount.parse(await request.json());
     if ((payload.accessToken || payload.refreshToken) && !tokenStorageReady()) {
       return Response.json({
@@ -54,7 +58,7 @@ export async function POST(request: Request) {
 
     const account = await db.socialAccount.create({
       data: {
-        workspaceId: payload.workspaceId,
+        workspaceId: workspace.id,
         platform: payload.platform,
         label: payload.label,
         username: payload.username,
@@ -79,6 +83,8 @@ export async function POST(request: Request) {
       },
     }, { status: 201 });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to create social account';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
