@@ -24,9 +24,10 @@ function normalizePresenterRef(imageRef: string) {
   return imageRef;
 }
 
-export async function queueAIVideo(input: AIVideoRequest) {
+export async function queueAIVideo(input: AIVideoRequest, workspaceId?: string) {
   const job = await db.renderJob.create({
     data: {
+      workspaceId,
       status: 'QUEUED',
       input: asJson({
         kind: 'ai-video-v1',
