@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { encryptToken, tokenStorageReady } from '@/lib/token-crypto';
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
         username: payload.username,
         accessTokenEncrypted: payload.accessToken ? encryptToken(payload.accessToken) : null,
         refreshTokenEncrypted: payload.refreshToken ? encryptToken(payload.refreshToken) : null,
-        metadata: payload.metadata ?? undefined,
+        metadata: payload.metadata as Prisma.InputJsonValue | undefined,
         status: payload.accessToken ? 'connected' : 'disconnected',
       },
     });
