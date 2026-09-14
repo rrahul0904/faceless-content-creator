@@ -1,11 +1,11 @@
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
 const AssetInput = z.object({
-  workspaceId: z.string().optional(),
   type: z.enum(['IMAGE', 'COLOR', 'FONT', 'VIDEO', 'AUDIO']),
   name: z.string().min(1).max(255),
   url: z.string().optional(),
@@ -21,24 +21,32 @@ function jsonValue(value: unknown): Prisma.InputJsonValue {
 }
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const workspaceId = url.searchParams.get('workspaceId') || undefined;
-  const type = url.searchParams.get('type') || undefined;
-  const query = url.searchParams.get('q')?.trim() || undefined;
-  const assets = await db.brandAsset.findMany({
-    where: {
-      ...(workspaceId ? { workspaceId } : {}),
-      ...(type && ['IMAGE','COLOR','FONT','VIDEO','AUDIO'].includes(type) ? { type: type as 'IMAGE'|'COLOR'|'FONT'|'VIDEO'|'AUDIO' } : {}),
-      ...(query ? { name: { contains: query } } : {}),
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: 200,
-  });
-  return Response.json({ ok: true, data: assets });
+  try {
+    const workspace = await resolveWorkspace(request);
+    const url = new URL(request.url);
+    const type = url.searchParams.get('type') || undefined;
+    const query = url.searchParams.get('q')?.trim() || undefined;
+    const assets = await db.brandAsset.findMany({
+      where: {
+        workspaceId: workspace.id,
+        ...(type && ['IMAGE','COLOR','FONT','VIDEO','AUDIO'].includes(type) ? { type: type as 'IMAGE'|'COLOR'|'FONT'|'VIDEO'|'AUDIO' } : {}),
+        ...(query ? { name: { contains: query } } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 200,
+    });
+    return Response.json({ ok: true, data: assets });
+  } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
+    const message = error instanceof Error ? error.message : 'Unable to list brand assets';
+    return Response.json({ ok: false, error: message }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
   try {
+    const workspace = await resolveWorkspace(request);
     const input = AssetInput.parse(await request.json());
     if (input.type === 'COLOR' && !input.value) {
       return Response.json({ ok: false, error: 'Color assets require a value' }, { status: 400 });
@@ -48,7 +56,7 @@ export async function POST(request: Request) {
     }
     const asset = await db.brandAsset.create({
       data: {
-        workspaceId: input.workspaceId,
+        workspaceId: workspace.id,
         type: input.type,
         name: input.name,
         url: input.url,
@@ -61,6 +69,8 @@ export async function POST(request: Request) {
     });
     return Response.json({ ok: true, data: asset }, { status: 201 });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to create brand asset';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
