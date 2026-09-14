@@ -14,7 +14,7 @@ export type LocalRenderInput = {
   template?: LocalTemplate;
 };
 
-export async function createLocalRenderJob(input: LocalRenderInput, contentId?: string) {
+export async function createLocalRenderJob(input: LocalRenderInput, contentId?: string, workspaceId?: string) {
   const renderInput = {
     kind: 'legacy-local',
     hook: input.hook,
@@ -27,10 +27,18 @@ export async function createLocalRenderJob(input: LocalRenderInput, contentId?: 
   } satisfies Prisma.InputJsonObject;
 
   const job = await db.renderJob.create({
-    data: { input: renderInput, status: 'QUEUED' },
+    data: { workspaceId, input: renderInput, status: 'QUEUED' },
   });
 
   if (contentId) {
+    const content = await db.contentItem.findUnique({
+      where: { id: contentId },
+      include: { channel: { select: { workspaceId: true } } },
+    });
+    if (!content) throw new Error('Content item not found');
+    if (workspaceId && content.channel.workspaceId && content.channel.workspaceId !== workspaceId) {
+      throw new Error('Content item belongs to a different workspace');
+    }
     await db.contentItem.update({
       where: { id: contentId },
       data: { renderJobId: job.id, status: 'RENDERING' },
