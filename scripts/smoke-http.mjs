@@ -1,4 +1,5 @@
 const baseUrl = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:3000';
+const smokeApiKey = process.env.SMOKE_API_KEY ?? '';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -77,9 +78,20 @@ if (!workspaceId || workspaceSummary.data.workspace.slug !== 'local' || workspac
   throw new Error(`Local workspace bootstrap failed: ${JSON.stringify(workspaceSummary)}`);
 }
 
-await expectStatus('/api/v1/workspace', 404, {
+await expectStatus('/api/v1/workspace', 403, {
   headers: { 'x-workspace-id': 'workspace-that-does-not-exist' },
 });
+await expectStatus('/api/v1/workspace', 401, {
+  headers: { Authorization: 'Bearer fcc_invalid_key_for_smoke_test' },
+});
+
+if (!smokeApiKey.startsWith('fcc_')) throw new Error('CI did not provide a generated workspace API key');
+const authenticatedWorkspace = await json('/api/v1/workspace', {
+  headers: { Authorization: `Bearer ${smokeApiKey}` },
+});
+if (authenticatedWorkspace.data?.workspace?.id !== workspaceId) {
+  throw new Error(`API key resolved the wrong workspace: ${JSON.stringify(authenticatedWorkspace)}`);
+}
 
 // Compatibility path remains functional while the generic template engine is developed.
 const scriptResponse = await json('/api/script', {
@@ -169,7 +181,7 @@ if (terminalCancel.data?.accepted !== false || terminalCancel.data?.reason !== '
 console.log(JSON.stringify({
   ok: true,
   health,
-  workspace: { id: workspaceId, slug: workspaceSummary.data.workspace.slug },
+  workspace: { id: workspaceId, slug: workspaceSummary.data.workspace.slug, apiKeyAuthenticated: true },
   usage: { renderJobs: renderedJobs, creditBalance: usage.data.creditBalance },
   legacy: { jobId: legacyJobId, videoPath: legacyVideoPath, sampledVideoBytes: legacyBytes },
   templateEngine: {
