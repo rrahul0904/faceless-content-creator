@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createLocalRenderJob } from '@/lib/render-queue';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
@@ -16,13 +17,15 @@ const RenderRequest = z.object({
 
 export async function POST(request: Request) {
   try {
+    const workspace = await resolveWorkspace(request);
     const payload = RenderRequest.parse(await request.json());
-    const job = await createLocalRenderJob(payload, payload.contentId);
+    const job = await createLocalRenderJob(payload, payload.contentId, workspace.id);
 
     return Response.json({
       ok: true,
       job: {
         id: job.id,
+        workspaceId: workspace.id,
         status: job.status.toLowerCase(),
         finished: false,
         engine: 'local-ffmpeg',
@@ -30,6 +33,8 @@ export async function POST(request: Request) {
       },
     }, { status: 202 });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to start local render';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
