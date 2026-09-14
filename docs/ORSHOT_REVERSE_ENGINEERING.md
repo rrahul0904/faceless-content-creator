@@ -96,6 +96,8 @@ Our equivalent surface:
 - `GET /api/v1/render-jobs`
 - `POST /api/v1/render-jobs/:id/cancel`
 
+Cancellation is durable. A queued job is atomically moved to `CANCELLED` before a worker can claim it. A running job records `cancelRequested=true`; the current media operation may finish, but the worker discards its generated artifact and persists `CANCELLED` instead of `SUCCEEDED`. Re-cancelling a terminal job is idempotent and reports that it was already finished.
+
 The worker queue and asset store are implementation details. The API must remain stable when we move from one server to a render farm.
 
 ### 7. Assets / brand kit
