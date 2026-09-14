@@ -1,7 +1,6 @@
-import { spawn } from 'node:child_process';
-import path from 'node:path';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
+import { startRenderWorker } from '@/lib/render-worker';
 
 export type LocalTemplate = 'editorial' | 'signal' | 'ember';
 
@@ -15,19 +14,9 @@ export type LocalRenderInput = {
   template?: LocalTemplate;
 };
 
-function startDetachedWorker(jobId: string) {
-  const workerPath = path.join(process.cwd(), 'worker', 'render-job.mjs');
-  const child = spawn(process.execPath, [workerPath, jobId], {
-    cwd: process.cwd(),
-    detached: true,
-    stdio: 'ignore',
-    env: process.env,
-  });
-  child.unref();
-}
-
 export async function createLocalRenderJob(input: LocalRenderInput, contentId?: string) {
   const renderInput = {
+    kind: 'legacy-local',
     hook: input.hook,
     script: input.script,
     topic: input.topic,
@@ -48,6 +37,6 @@ export async function createLocalRenderJob(input: LocalRenderInput, contentId?: 
     });
   }
 
-  startDetachedWorker(job.id);
+  startRenderWorker(job.id);
   return job;
 }
