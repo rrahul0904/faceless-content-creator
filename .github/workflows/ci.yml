@@ -36,6 +36,11 @@ jobs:
       - name: Create one-time workspace API key for acceptance
         shell: bash
         run: |
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then break; fi
+            if [ "$attempt" = 40 ]; then exit 1; fi
+            sleep 1
+          done
           KEY_JSON="$(docker exec faceless-ci node scripts/create-api-key.mjs --workspace local --name ci-smoke --days 1)"
           SMOKE_API_KEY="$(node -e 'const data=JSON.parse(process.argv[1]); process.stdout.write(data.apiKey)' "$KEY_JSON")"
           test -n "$SMOKE_API_KEY"
@@ -43,9 +48,33 @@ jobs:
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
+      - name: Boot hosted API-key mode
+        run: docker run -d --name faceless-auth-ci -e FCC_AUTH_MODE=api-key -p 3001:3000 faceless-content-creator:ci
+      - name: Create hosted-mode operator API key
+        shell: bash
+        run: |
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:3001/api/health >/dev/null; then break; fi
+            if [ "$attempt" = 40 ]; then exit 1; fi
+            sleep 1
+          done
+          AUTH_KEY_JSON="$(docker exec faceless-auth-ci node scripts/create-api-key.mjs --workspace local --name hosted-ci-smoke --days 1)"
+          HOSTED_SMOKE_API_KEY="$(node -e 'const data=JSON.parse(process.argv[1]); process.stdout.write(data.apiKey)' "$AUTH_KEY_JSON")"
+          test -n "$HOSTED_SMOKE_API_KEY"
+          echo "::add-mask::$HOSTED_SMOKE_API_KEY"
+          echo "HOSTED_SMOKE_API_KEY=$HOSTED_SMOKE_API_KEY" >> "$GITHUB_ENV"
+      - name: Exercise fail-closed hosted authentication
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3001
+          SMOKE_API_KEY: ${{ env.HOSTED_SMOKE_API_KEY }}
+        run: npm run auth:smoke
       - name: Show container logs on failure
         if: failure()
-        run: docker logs faceless-ci || true
-      - name: Stop smoke container
+        run: |
+          docker logs faceless-ci || true
+          docker logs faceless-auth-ci || true
+      - name: Stop smoke containers
         if: always()
-        run: docker rm -f faceless-ci || true
+        run: |
+          docker rm -f faceless-ci || true
+          docker rm -f faceless-auth-ci || true
