@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { queueTemplateRender } from '@/lib/template-engine/render';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
@@ -18,8 +19,9 @@ const RequestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const workspace = await resolveWorkspace(request);
     const payload = RequestSchema.parse(await request.json());
-    const queued = await queueTemplateRender(payload.templateId, payload);
+    const queued = await queueTemplateRender(payload.templateId, payload, workspace.id);
     if (!queued) return Response.json({ ok: false, error: 'Template not found' }, { status: 404 });
 
     return Response.json({
@@ -27,12 +29,15 @@ export async function POST(request: Request) {
       data: {
         id: queued.job.id,
         jobId: queued.job.id,
+        workspaceId: workspace.id,
         status: queued.job.status.toLowerCase(),
         mode: 'async',
         warnings: queued.warnings,
       },
     }, { status: 202 });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to queue render';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
