@@ -1,10 +1,59 @@
 # Faceless Content Creator
 
-A local-first faceless-content studio that turns an idea into a narrated, captioned 9:16 MP4 without requiring a hosted rendering API, template ID, presenter image, callback URL, webhook secret, or database server.
+Faceless Content Creator is an independently implemented programmable creative engine and short-form content studio. It started from a clean-room reverse engineering of the public Orshot + n8n workflow, then evolved beyond a vendor wrapper into an owned template, rendering, media, presenter and social-publishing stack.
 
-The project started by reverse-engineering the Orshot + n8n tutorial. The default runtime has now been refactored so Orshot is **not in the critical path**.
+The goal is a sellable SaaS where a customer can design a reusable visual template once, expose selected properties as parameters, generate videos from content data, review them, schedule/publish them, and learn from performance.
 
-## Zero-config quick start
+## Current milestone
+
+The current engine milestone implements the core programmable-media layer:
+
+- versioned multi-page visual templates
+- parameterizable text, image, video, shape, container and waveform layers
+- flattened render modifications such as `hook`, `hero_image`, `accent.fill`, and `hook.style.fontSize`
+- responsive Smart Resize and saved layout variants
+- declarative motion/timing compilation
+- browser-based template Studio using the same JSON document consumed by final rendering
+- async durable render jobs, history and cancellation
+- FFmpeg composition with narration, subtitles, media layers, multi-page scenes and audio tracks
+- workspace-scoped brand assets
+- shared media upload/streaming with byte-range video playback
+- separate AI-presenter service boundary and GPU Docker topology
+- encrypted social credential storage boundary
+- durable scheduled publication records and YouTube / Instagram / TikTok publisher adapters
+
+The original hard-coded local renderer is retained only as a compatibility/smoke path while the generic template engine becomes the only renderer.
+
+## Engine flow
+
+```text
+Idea / content data
+        ↓
+Template + dynamic modifications
+        ↓
+Template compiler
+  ├─ parameter replacement
+  ├─ responsive layout
+  ├─ motion/timeline
+  └─ media/audio/subtitle plan
+        ↓
+Durable render job
+        ↓
+CPU render worker ───────────────┐
+        ↓                         │
+FFmpeg composition               │
+        ↓                         │
+MP4 / preview / export            │
+                                  │
+Optional AI presenter             │
+image + script → GPU worker ──────┘
+        ↓
+Review / schedule / publish
+```
+
+## Zero-config local engine
+
+For local engine development, no hosted rendering vendor is required:
 
 ```bash
 git clone https://github.com/rrahul0904/faceless-content-creator.git
@@ -12,22 +61,9 @@ cd faceless-content-creator
 docker compose up --build
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000` for the creator workspace and `http://localhost:3000/studio` for the template Studio.
 
-That is enough to create and render a video. No `.env` file is required.
-
-## What the default stack uses
-
-- **Next.js 16** for the product UI and API
-- **SQLite + Prisma** at `data/faceless.db`
-- **eSpeak NG** for bundled local text-to-speech
-- **FFmpeg** for 1080×1920 MP4 composition, audio encoding and burned captions
-- **Detached local render jobs** persisted in SQLite
-- **Docker Compose** with one application service and one persistent data volume
-
-## What was removed from the required setup
-
-The default application does **not** require any of the following:
+The local deterministic render path does not require:
 
 ```text
 ORSHOT_API_KEY
@@ -39,90 +75,95 @@ APP_BASE_URL
 WEBHOOK_SECRET
 ```
 
-There is no Orshot SDK/adapter in the default runtime and no render-completion webhook.
+Local mode uses SQLite, FFmpeg, eSpeak NG and repository-owned templates. Optional external AI providers and social networks naturally require their own authorization when enabled.
 
-## Product flow
-
-```text
-Niche + idea
-    ↓
-Hook + script + caption
-    ↓
-Local text-to-speech
-    ↓
-Local 9:16 FFmpeg composition
-    ↓
-Burned captions + narration
-    ↓
-SQLite render-job state
-    ↓
-Browser preview
-    ↓
-Download/export MP4
-```
-
-## Development without Docker
-
-Docker is the easiest path because it installs the media dependencies automatically. For native development install:
-
-- Node.js 22+
-- FFmpeg / ffprobe
-- eSpeak NG
-- DejaVu fonts
-
-Then run:
-
-```bash
-npm install
-mkdir -p data/renders data/work
-npx prisma generate
-npx prisma db push
-npm run dev
-```
-
-## Script generation
-
-The built-in deterministic script engine works with no credentials. An OpenAI-compatible endpoint remains an **optional** enhancement through `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL`; none is required for rendering.
-
-## API surface
+## Orshot-class API surface
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /api/script` | Generate a short-form script package |
-| `POST /api/render` | Queue a local FFmpeg render |
-| `GET /api/render/:id` | Read local render status and output URL |
-| `GET /api/assets/:filename` | Stream a rendered MP4 from local storage |
-| `GET/POST /api/channels` | Manage content channels |
-| `GET/POST /api/content` | Manage persisted content |
-| `POST /api/content/:id/render` | Render persisted content locally |
-| `GET /api/social/accounts` | Read locally stored social connections |
-| `GET /api/analytics` | Read analytics persisted in SQLite |
-| `GET /api/health` | Service health check |
+| `GET/POST /api/v1/templates` | List/create reusable visual templates |
+| `GET/PATCH /api/v1/templates/:id` | Read/version a template |
+| `POST /api/v1/templates/bootstrap` | Seed built-in templates |
+| `POST /api/v1/templates/:id/render` | Queue a parameterized template render |
+| `POST /api/v1/studio/render` | Stable Studio-style `templateId + modifications` render contract |
+| `GET /api/v1/render-jobs` | Render history |
+| `GET /api/v1/render-jobs/:id` | Poll a render job |
+| `POST /api/v1/render-jobs/:id/cancel` | Cancel queued/running renders |
+| `GET/POST /api/v1/brand-assets` | Workspace brand assets |
+| `GET/PATCH/DELETE /api/v1/brand-assets/:id` | Manage a brand asset |
+| `POST /api/v1/ai/video` | Queue an AI-presenter job |
+| `POST /api/media` | Upload presenter/B-roll/audio media |
+| `GET /api/media/:filename` | Stream uploaded media with range support |
+
+Compatibility/content endpoints such as `/api/script`, `/api/render`, `/api/content`, `/api/channels`, `/api/social/*`, and `/api/analytics` remain available while the product UI is consolidated around the v1 engine.
+
+## Rendering and cancellation
+
+Render jobs persist in SQLite for local mode. A worker atomically claims a queued job before rendering. Cancellation has real state semantics:
+
+- queued jobs move immediately to `CANCELLED` before a worker can claim them;
+- running jobs receive `cancelRequested=true`;
+- an in-flight media operation may finish, but its output is discarded and the job persists as `CANCELLED` rather than `SUCCEEDED`;
+- cancellation of an already-terminal job is idempotent.
+
+This contract is designed so the implementation can move from local detached workers to a cloud render queue without changing client APIs.
+
+## AI presenter
+
+The presenter capability is isolated from the Next.js process. `POST /api/v1/ai/video` creates the same kind of durable async job as deterministic rendering. A separate GPU service is defined under:
+
+```text
+services/avatar-worker/
+docker-compose.gpu.yml
+```
+
+The service boundary is designed for neural TTS + talking-photo/lip-sync inference. GPU/model deployment is optional and is not required for deterministic faceless rendering.
 
 ## Social publishing
 
-Video generation and export are fully local and zero-config. Direct publishing to YouTube, Instagram or TikTok is a separate concern because those platforms require OAuth authorization. This repository no longer proxies publishing through Orshot. Native platform adapters can store connection state in the included `SocialAccount` model instead of using renderer credentials.
+The engine contains durable publication scheduling and native publisher adapters for YouTube, Instagram and TikTok. Social credentials are encrypted before persistence when token storage is configured.
 
-Until a native adapter is connected, the product gives you the finished MP4 and caption without pretending a post was published.
-
-## n8n
-
-`workflows/n8n/faceless-content-creator.json` is an optional automation client for **this application API**, not for Orshot. The application itself does not require n8n.
+A commercial hosted deployment still needs platform OAuth applications and customer-facing **Connect account** flows. The repository does not pretend those platform authorizations can be removed or anonymously generated.
 
 ## Verification
 
-GitHub Actions verifies the actual self-hosted path:
+CI verifies the real media path rather than only compiling code:
 
-1. install FFmpeg, eSpeak NG and fonts;
-2. install dependencies and audit production packages;
-3. initialize SQLite;
-4. lint and typecheck;
-5. build Next.js;
-6. render a real narrated MP4 as a smoke test.
+1. installs FFmpeg, eSpeak NG and fonts;
+2. installs and audits production dependencies;
+3. generates Prisma Client and initializes SQLite;
+4. runs ESLint and strict TypeScript;
+5. creates a production Next.js build;
+6. renders a real MP4 through the worker;
+7. builds the Docker image;
+8. boots the image with zero required environment variables;
+9. calls the live HTTP script/template APIs;
+10. polls render state and byte-range streams the generated MP4;
+11. verifies the render-cancellation API contract.
 
-A successful CI run therefore proves more than compilation: the local media engine produced a real file.
+CI is branch-concurrent: superseded push/PR runs are cancelled so release evidence always corresponds to the latest head.
 
-See [`docs/SETUP.md`](docs/SETUP.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## What is deliberately next
+
+This repository now has the creative-engine foundation, but a sellable hosted SaaS still needs a separate productization phase. Before calling the commercial product complete we still need:
+
+- customer authentication and workspace membership/roles
+- hosted PostgreSQL instead of single-node SQLite
+- object storage/CDN instead of local disk
+- durable distributed CPU/GPU queues and retry/dead-letter handling
+- subscriptions, plans, credits and usage metering
+- customer-facing OAuth connection flows for social platforms
+- analytics ingestion/UI and optimization feedback loop
+- rate limits, quotas and abuse controls
+- production deployment/observability and browser E2E certification
+
+Those are intentionally treated as the next phase rather than being hidden behind a “complete” label.
+
+## Documentation
+
+- [`docs/ORSHOT_REVERSE_ENGINEERING.md`](docs/ORSHOT_REVERSE_ENGINEERING.md) — capability map and independent implementation design
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — local/runtime architecture
+- [`docs/SETUP.md`](docs/SETUP.md) — development setup
 
 ## License
 
