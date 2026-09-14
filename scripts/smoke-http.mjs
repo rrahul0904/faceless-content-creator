@@ -122,9 +122,21 @@ const templateBytes = await assertVideo(templateVideoPath);
 const history = await json(`/api/v1/render-jobs?templateId=${encodeURIComponent(templateId)}&limit=10`);
 if (!history.data?.some((job) => job.id === templateJobId)) throw new Error('Template render was not present in render history');
 
+// Cancellation is idempotent for terminal jobs; this certifies the public contract without a timing race.
+const terminalCancel = await json(`/api/v1/render-jobs/${encodeURIComponent(templateJobId)}/cancel`, { method: 'POST' });
+if (terminalCancel.data?.accepted !== false || terminalCancel.data?.reason !== 'already_finished' || terminalCancel.data?.status !== 'succeeded') {
+  throw new Error(`Terminal render cancellation contract was unexpected: ${JSON.stringify(terminalCancel)}`);
+}
+
 console.log(JSON.stringify({
   ok: true,
   health,
   legacy: { jobId: legacyJobId, videoPath: legacyVideoPath, sampledVideoBytes: legacyBytes },
-  templateEngine: { templateId, jobId: templateJobId, videoPath: templateVideoPath, sampledVideoBytes: templateBytes },
+  templateEngine: {
+    templateId,
+    jobId: templateJobId,
+    videoPath: templateVideoPath,
+    sampledVideoBytes: templateBytes,
+    terminalCancel,
+  },
 }));
