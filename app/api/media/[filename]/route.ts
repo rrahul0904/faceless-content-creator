@@ -8,6 +8,12 @@ const CONTENT_TYPES: Record<string, string> = {
   mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', ogg: 'audio/ogg',
 };
 
+function responseBody(bytes: Buffer) {
+  const body = new Uint8Array(bytes.byteLength);
+  body.set(bytes);
+  return body;
+}
+
 export async function GET(request: Request, context: { params: Promise<{ filename: string }> }) {
   try {
     const { filename } = await context.params;
@@ -30,7 +36,7 @@ export async function GET(request: Request, context: { params: Promise<{ filenam
       }
       const bytes = await readFile(file);
       const chunk = bytes.subarray(start, end + 1);
-      return new Response(chunk, {
+      return new Response(responseBody(chunk), {
         status: 206,
         headers: {
           'Content-Type': contentType,
@@ -43,7 +49,7 @@ export async function GET(request: Request, context: { params: Promise<{ filenam
     }
 
     const bytes = await readFile(file);
-    return new Response(bytes, {
+    return new Response(responseBody(bytes), {
       headers: {
         'Content-Type': contentType,
         'Content-Length': String(bytes.length),
