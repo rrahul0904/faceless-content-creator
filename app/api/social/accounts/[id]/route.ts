@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { encryptToken, tokenStorageReady } from '@/lib/token-crypto';
@@ -33,7 +34,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         ...(payload.refreshToken !== undefined
           ? { refreshTokenEncrypted: payload.refreshToken ? encryptToken(payload.refreshToken) : null }
           : {}),
-        ...(payload.metadata !== undefined ? { metadata: payload.metadata ?? undefined } : {}),
+        ...(payload.metadata !== undefined
+          ? { metadata: payload.metadata === null ? Prisma.DbNull : payload.metadata as Prisma.InputJsonValue }
+          : {}),
         ...(payload.status !== undefined
           ? { status: payload.status }
           : payload.accessToken
