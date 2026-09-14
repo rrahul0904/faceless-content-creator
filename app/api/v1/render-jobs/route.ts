@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       id: true,
       templateId: true,
       status: true,
+      cancelRequested: true,
       videoUrl: true,
       error: true,
       createdAt: true,
@@ -27,6 +28,10 @@ export async function GET(request: Request) {
 
   return Response.json({
     ok: true,
-    data: jobs.map((job) => ({ ...job, status: job.status.toLowerCase() })),
+    data: jobs.map((job) => ({
+      ...job,
+      status: job.status.toLowerCase(),
+      cancellable: job.status === 'QUEUED' || job.status === 'RUNNING',
+    })),
   });
 }
