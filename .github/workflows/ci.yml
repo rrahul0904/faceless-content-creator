@@ -33,6 +33,14 @@ jobs:
         run: docker build -t faceless-content-creator:ci .
       - name: Boot zero-config Docker image
         run: docker run -d --name faceless-ci -p 3000:3000 faceless-content-creator:ci
+      - name: Create one-time workspace API key for acceptance
+        shell: bash
+        run: |
+          KEY_JSON="$(docker exec faceless-ci node scripts/create-api-key.mjs --workspace local --name ci-smoke --days 1)"
+          SMOKE_API_KEY="$(node -e 'const data=JSON.parse(process.argv[1]); process.stdout.write(data.apiKey)' "$KEY_JSON")"
+          test -n "$SMOKE_API_KEY"
+          echo "::add-mask::$SMOKE_API_KEY"
+          echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
       - name: Show container logs on failure
