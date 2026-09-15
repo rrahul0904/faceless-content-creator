@@ -35,7 +35,8 @@ jobs:
         run: >-
           docker run -d --name faceless-ci
           -e FCC_FREE_RENDER_JOBS_PER_MONTH=2
-          -e FCC_FREE_METERED_REQUESTS_PER_MINUTE=3
+          -e FCC_FREE_STORAGE_MB=1
+          -e FCC_FREE_METERED_REQUESTS_PER_MINUTE=7
           -e FCC_FREE_MEMBERS=1
           -p 3000:3000
           faceless-content-creator:ci

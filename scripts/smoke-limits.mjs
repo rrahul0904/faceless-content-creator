@@ -37,8 +37,11 @@ if (before.data?.plan !== 'FREE') throw new Error(`Unexpected test plan: ${JSON.
 if (before.data?.monthly?.renderJobs?.limit !== 2 || before.data?.monthly?.renderJobs?.used < 2) {
   throw new Error(`Render quota override or usage accounting is wrong: ${JSON.stringify(before.data?.monthly?.renderJobs)}`);
 }
+if (before.data?.monthly?.storageMb?.limit !== 1 || before.data?.monthly?.storageMb?.used <= 0) {
+  throw new Error(`Storage quota override or upload accounting is wrong: ${JSON.stringify(before.data?.monthly?.storageMb)}`);
+}
 if (before.data?.members?.limit !== 1) throw new Error(`Membership limit override was not applied: ${JSON.stringify(before.data?.members)}`);
-if (before.data?.rate?.limit !== 3 || before.data?.rate?.used < 2) {
+if (before.data?.rate?.limit !== 7 || before.data?.rate?.used < 5) {
   throw new Error(`Metered rate override or accounting is wrong: ${JSON.stringify(before.data?.rate)}`);
 }
 
@@ -80,6 +83,13 @@ if (!String(lastOwnerDelete.body?.error ?? '').includes('retain at least one own
   throw new Error(`Last-owner deletion did not fail closed: ${JSON.stringify(lastOwnerDelete.body)}`);
 }
 
+const oversizedForm = new FormData();
+oversizedForm.append('file', new Blob([new Uint8Array(2 * 1024 * 1024)], { type: 'video/mp4' }), 'quota-test.mp4');
+const storageRejected = await expectStatus('/api/media', 429, { method: 'POST', body: oversizedForm });
+if (storageRejected.body?.code !== 'quota_exceeded' || storageRejected.body?.limit?.resource !== 'STORAGE_MB') {
+  throw new Error(`Storage quota rejection was not certified: ${JSON.stringify(storageRejected.body)}`);
+}
+
 const bootstrap = await json('/api/v1/templates/bootstrap', { method: 'POST' });
 const templateId = bootstrap.data?.[0]?.id;
 if (!templateId) throw new Error(`Template bootstrap returned no template: ${JSON.stringify(bootstrap)}`);
@@ -92,9 +102,9 @@ const renderRequest = {
 
 const quotaRejected = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
 if (quotaRejected.body?.code !== 'quota_exceeded' || quotaRejected.body?.limit?.resource !== 'RENDER_JOB') {
-  throw new Error(`Monthly quota rejection was not certified: ${JSON.stringify(quotaRejected.body)}`);
+  throw new Error(`Monthly render quota rejection was not certified: ${JSON.stringify(quotaRejected.body)}`);
 }
-if (!quotaRejected.response.headers.get('retry-after')) throw new Error('Quota response did not include Retry-After');
+if (!quotaRejected.response.headers.get('retry-after')) throw new Error('Render quota response did not include Retry-After');
 
 const rateRejected = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
 if (rateRejected.body?.code !== 'metered_rate_limited') {
@@ -103,7 +113,12 @@ if (rateRejected.body?.code !== 'metered_rate_limited') {
 if (!rateRejected.response.headers.get('retry-after')) throw new Error('Rate-limit response did not include Retry-After');
 
 const after = await json('/api/v1/limits');
-if (after.data?.members?.used !== 1 || after.data?.rate?.used < 4 || after.data?.monthly?.renderJobs?.used < 2) {
+if (
+  after.data?.members?.used !== 1 ||
+  after.data?.rate?.used < 8 ||
+  after.data?.monthly?.renderJobs?.used < 2 ||
+  after.data?.monthly?.storageMb?.used <= 0
+) {
   throw new Error(`Limit snapshot did not reflect exercised controls: ${JSON.stringify(after)}`);
 }
 
@@ -112,7 +127,15 @@ console.log(JSON.stringify({
   workspaceId: after.data.workspaceId,
   plan: after.data.plan,
   renderJobs: after.data.monthly.renderJobs,
+  storageMb: after.data.monthly.storageMb,
   members: after.data.members,
   rate: after.data.rate,
-  certified: ['membership-cap', 'last-owner-guard', 'monthly-render-quota', 'metered-rate-limit'],
+  certified: [
+    'workspace-storage-accounting',
+    'storage-quota',
+    'membership-cap',
+    'last-owner-guard',
+    'monthly-render-quota',
+    'metered-rate-limit',
+  ],
 }));

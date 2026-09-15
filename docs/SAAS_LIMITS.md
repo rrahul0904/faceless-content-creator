@@ -15,9 +15,17 @@ Monthly limits reset at 00:00 UTC on the first day of the next month. Metered re
 
 ## Enforcement
 
-The render quota is enforced across the legacy `/api/render`, content render, template render and Studio render entry points. AI-presenter jobs use their own quota. Social publishing checks the number of target accounts before creating publication records. Requests rejected by a quota or rate limit return HTTP `429`, a stable error `code`, structured limit metadata and `Retry-After` when a time-based reset applies.
+The render quota is enforced across the legacy `/api/render`, content render, template render and Studio render entry points. AI-presenter jobs use their own quota. Social publishing checks the number of target accounts before creating publication records. Media uploads enforce the workspace storage allowance before bytes are written and record actual uploaded MB only after a successful write.
+
+CPU-heavy reference-video analysis and semantic-timeline compilation also consume the metered request budget. Requests rejected by a quota or rate limit return HTTP `429`, a stable error `code`, structured limit metadata and `Retry-After` when a time-based reset applies.
 
 `GET /api/v1/limits` exposes the current workspace plan, monthly usage, member capacity and current rate bucket without consuming the rate budget.
+
+## Media tenant boundary
+
+New uploads are named with a workspace ownership prefix and `GET /api/media/:filename` resolves the requesting workspace before serving bytes. A workspace cannot read another workspace's prefixed upload. Local mode retains access to older unprefixed files so existing single-user installations do not lose media after upgrading.
+
+Reference-video analysis applies the same ownership rule before probing or decoding an uploaded file.
 
 ## Membership management
 
@@ -42,4 +50,4 @@ The same suffixes work with `CREATOR`, `PRO`, and `BUSINESS`.
 
 ## Certification
 
-CI boots the real Docker image with deliberately small FREE-plan limits after the normal build/render gates. It then proves that the existing two real render jobs consume the monthly allowance, a third render is rejected as `quota_exceeded`, the next metered render is rejected as `metered_rate_limited`, a second member is rejected as `membership_limit_exceeded`, and the last workspace owner cannot be demoted or deleted.
+CI boots the real Docker image with deliberately small FREE-plan limits after the normal build/render gates. The existing HTTP acceptance flow first performs a real media upload, reference-video analysis, legacy render, semantic compilation and template render. The limits smoke then proves that an oversized follow-up upload is rejected as `quota_exceeded` for `STORAGE_MB`, another render is rejected as `quota_exceeded` for `RENDER_JOB`, the next metered render is rejected as `metered_rate_limited`, a second member is rejected as `membership_limit_exceeded`, and the last workspace owner cannot be demoted or deleted.

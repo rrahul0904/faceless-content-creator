@@ -172,25 +172,29 @@ export class PlanLimitError extends Error {
   }
 }
 
-export async function enforceUsageLimit(workspace: WorkspaceIdentity, kind: UsageKind, quantity = 1) {
-  const requested = Math.max(1, quantity);
-  const limits = limitsForPlan(workspace.plan);
+export async function enforceMeteredRate(workspace: WorkspaceIdentity) {
+  const limit = limitsForPlan(workspace.plan).meteredRequestsPerMinute;
   const rate = await incrementRateCount(workspace.id);
-
-  if (rate.used > limits.meteredRequestsPerMinute) {
+  if (rate.used > limit) {
     throw new PlanLimitError({
       message: 'Workspace request rate limit exceeded',
       code: 'metered_rate_limited',
       retryAfterSeconds: Math.max(1, Math.ceil((rate.resetAt.getTime() - Date.now()) / 1000)),
       details: {
         plan: workspace.plan,
-        limit: limits.meteredRequestsPerMinute,
+        limit,
         used: rate.used,
         resetAt: rate.resetAt.toISOString(),
       },
     });
   }
+  return rate;
+}
 
+export async function enforceUsageLimit(workspace: WorkspaceIdentity, kind: UsageKind, quantity = 1) {
+  const requested = Math.max(0.000001, quantity);
+  const limits = limitsForPlan(workspace.plan);
+  const rate = await enforceMeteredRate(workspace);
   const key = MONTHLY_LIMIT_KEY[kind];
   if (!key) return { rate, monthly: null };
 
