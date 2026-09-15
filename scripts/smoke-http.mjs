@@ -1,3 +1,10 @@
+import { execFile } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 const baseUrl = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:3000';
 const smokeApiKey = process.env.SMOKE_API_KEY ?? '';
 
@@ -5,20 +12,24 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function json(path, init) {
-  const response = await fetch(`${baseUrl}${path}`, init);
+function approx(value, expected, tolerance = 0.08) {
+  return Number.isFinite(value) && Math.abs(value - expected) <= tolerance;
+}
+
+async function json(pathname, init) {
+  const response = await fetch(`${baseUrl}${pathname}`, init);
   const body = await response.json();
   if (!response.ok) {
-    throw new Error(`${init?.method ?? 'GET'} ${path} failed (${response.status}): ${JSON.stringify(body)}`);
+    throw new Error(`${init?.method ?? 'GET'} ${pathname} failed (${response.status}): ${JSON.stringify(body)}`);
   }
   return body;
 }
 
-async function expectStatus(path, status, init) {
-  const response = await fetch(`${baseUrl}${path}`, init);
+async function expectStatus(pathname, status, init) {
+  const response = await fetch(`${baseUrl}${pathname}`, init);
   const body = await response.json().catch(() => ({}));
   if (response.status !== status) {
-    throw new Error(`${init?.method ?? 'GET'} ${path} returned ${response.status}, expected ${status}: ${JSON.stringify(body)}`);
+    throw new Error(`${init?.method ?? 'GET'} ${pathname} returned ${response.status}, expected ${status}: ${JSON.stringify(body)}`);
   }
   return body;
 }
@@ -51,6 +62,24 @@ async function assertVideo(videoPath) {
   const bytes = new Uint8Array(await videoResponse.arrayBuffer());
   if (bytes.length < 1024) throw new Error(`MP4 response was unexpectedly small: ${bytes.length} bytes`);
   return bytes.length;
+}
+
+async function createReferenceFixture() {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'faceless-reference-'));
+  const output = path.join(dir, 'reference-fixture.mp4');
+  await execFileAsync('ffmpeg', [
+    '-y',
+    '-f', 'lavfi', '-i', 'color=c=black:s=320x240:r=30:d=1',
+    '-f', 'lavfi', '-i', 'color=c=white:s=320x240:r=30:d=1',
+    '-f', 'lavfi', '-i', 'color=c=black:s=320x240:r=30:d=1',
+    '-filter_complex', '[0:v][1:v][2:v]concat=n=3:v=1:a=0,format=yuv420p[outv]',
+    '-map', '[outv]',
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast',
+    '-movflags', '+faststart',
+    output,
+  ], { maxBuffer: 1024 * 1024 * 16 });
+  return { dir, output };
 }
 
 async function waitLegacyRender(jobId) {
@@ -91,6 +120,57 @@ const authenticatedWorkspace = await json('/api/v1/workspace', {
 });
 if (authenticatedWorkspace.data?.workspace?.id !== workspaceId) {
   throw new Error(`API key resolved the wrong workspace: ${JSON.stringify(authenticatedWorkspace)}`);
+}
+
+// Reference-video path: create a real hard-cut MP4, upload it, detect its cuts, and bind a semantic event to the containing scene.
+const referenceFixture = await createReferenceFixture();
+const referenceBytes = await readFile(referenceFixture.output);
+const referenceForm = new FormData();
+referenceForm.append('file', new Blob([referenceBytes], { type: 'video/mp4' }), 'reference-fixture.mp4');
+const uploadedReference = await json('/api/media', { method: 'POST', body: referenceForm });
+const referenceFilename = uploadedReference.media?.filename;
+if (!referenceFilename) throw new Error(`Reference upload returned no filename: ${JSON.stringify(uploadedReference)}`);
+
+const referenceAnalysis = await json('/api/v1/reference-video/analyze', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    filename: referenceFilename,
+    sceneThreshold: 0.1,
+    semantic: {
+      words: [
+        { text: 'Now', start: 1.10, end: 1.22, speaker: 'host' },
+        { text: 'show', start: 1.23, end: 1.38, speaker: 'host' },
+        { text: 'the', start: 1.39, end: 1.49, speaker: 'host' },
+        { text: 'dashboard.', start: 1.50, end: 1.72, speaker: 'host' },
+      ],
+      cues: [{
+        id: 'dashboard-reveal',
+        target: 'accent',
+        phrase: 'show the dashboard',
+        speaker: 'host',
+        padBefore: 0.05,
+        padAfter: 0.10,
+      }],
+    },
+  }),
+});
+await rm(referenceFixture.dir, { recursive: true, force: true });
+
+const analyzedReference = referenceAnalysis.data;
+const referenceEvent = analyzedReference?.semantic?.events?.[0];
+if (
+  analyzedReference?.video?.width !== 320 || analyzedReference?.video?.height !== 240 ||
+  !approx(analyzedReference?.video?.duration, 3, 0.15) || !approx(analyzedReference?.video?.fps, 30, 0.2) ||
+  analyzedReference?.video?.hasAudio !== false ||
+  !Array.isArray(analyzedReference?.cuts) || analyzedReference.cuts.length < 2 ||
+  !Array.isArray(analyzedReference?.scenes) || analyzedReference.scenes.length < 3 ||
+  analyzedReference?.rhythm?.cutCount < 2 ||
+  referenceEvent?.sceneIndex !== 1 ||
+  !approx(referenceEvent?.start, 1.18, 0.02) || !approx(referenceEvent?.end, 1.82, 0.02) ||
+  analyzedReference?.semantic?.modifications?.['accent.transitions.showAt'] !== referenceEvent?.start ||
+  analyzedReference?.semantic?.modifications?.['accent.transitions.hideAt'] !== referenceEvent?.end
+) {
+  throw new Error(`Reference-video analysis was unexpected: ${JSON.stringify(referenceAnalysis)}`);
 }
 
 // Compatibility path remains functional while the generic template engine is developed.
@@ -134,6 +214,40 @@ if (!Array.isArray(modContract) || !modContract.some((item) => item.key === 'hoo
   throw new Error(`Template parameter contract is incomplete: ${JSON.stringify(modContract)}`);
 }
 
+// Semantic-video path: anchor a visual window to words, then use the compiler output in a real MP4 render.
+const semantic = await json('/api/v1/semantic-timeline/compile', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    fps: 30,
+    words: [
+      { text: 'An', start: 0.00, end: 0.12, speaker: 'host' },
+      { text: 'octopus', start: 0.13, end: 0.45, speaker: 'host' },
+      { text: 'has', start: 0.46, end: 0.58, speaker: 'host' },
+      { text: 'three', start: 0.59, end: 0.84, speaker: 'host' },
+      { text: 'hearts.', start: 0.85, end: 1.10, speaker: 'host' },
+    ],
+    cues: [{
+      id: 'accent-on-three-hearts',
+      target: 'accent',
+      phrase: 'three hearts',
+      speaker: 'host',
+      padBefore: 0.09,
+      padAfter: 0.15,
+    }],
+  }),
+});
+const semanticEvent = semantic.data?.events?.[0];
+const semanticModifications = semantic.data?.modifications;
+if (
+  semanticEvent?.wordStartIndex !== 3 || semanticEvent?.wordEndIndex !== 4 ||
+  semanticEvent?.start !== 0.5 || semanticEvent?.end !== 1.25 ||
+  semanticEvent?.startFrame !== 15 || semanticEvent?.endFrameExclusive !== 38 ||
+  semanticModifications?.['accent.transitions.showAt'] !== 0.5 ||
+  semanticModifications?.['accent.transitions.hideAt'] !== 1.25
+) {
+  throw new Error(`Semantic timeline compilation was unexpected: ${JSON.stringify(semantic)}`);
+}
+
 const templateQueued = await json(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -146,6 +260,7 @@ const templateQueued = await json(`/api/v1/templates/${encodeURIComponent(templa
       voiceover: 'An octopus has three hearts. Two pump blood to the gills, while the third sends blood around the body. Even stranger, the main heart stops beating when the octopus swims.',
       'accent.fill': '#67E8F9',
       'hook.style.fontSize': 74,
+      ...semanticModifications,
     },
     response: { format: 'mp4', mode: 'async', size: { width: 720, height: 1280 } },
   }),
@@ -183,7 +298,18 @@ console.log(JSON.stringify({
   health,
   workspace: { id: workspaceId, slug: workspaceSummary.data.workspace.slug, apiKeyAuthenticated: true },
   usage: { renderJobs: renderedJobs, creditBalance: usage.data.creditBalance },
+  referenceVideo: {
+    filename: referenceFilename,
+    video: analyzedReference.video,
+    cuts: analyzedReference.cuts,
+    rhythm: analyzedReference.rhythm,
+    semanticEvent: referenceEvent,
+  },
   legacy: { jobId: legacyJobId, videoPath: legacyVideoPath, sampledVideoBytes: legacyBytes },
+  semanticTimeline: {
+    event: semanticEvent,
+    modifications: semanticModifications,
+  },
   templateEngine: {
     templateId,
     jobId: templateJobId,
