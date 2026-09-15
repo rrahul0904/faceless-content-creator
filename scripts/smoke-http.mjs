@@ -1,14 +1,25 @@
+import { execFile } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 const baseUrl = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:3000';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function json(path, init) {
-  const response = await fetch(`${baseUrl}${path}`, init);
+function approx(value, expected, tolerance = 0.08) {
+  return Number.isFinite(value) && Math.abs(value - expected) <= tolerance;
+}
+
+async function json(pathname, init) {
+  const response = await fetch(`${baseUrl}${pathname}`, init);
   const body = await response.json();
   if (!response.ok) {
-    throw new Error(`${init?.method ?? 'GET'} ${path} failed (${response.status}): ${JSON.stringify(body)}`);
+    throw new Error(`${init?.method ?? 'GET'} ${pathname} failed (${response.status}): ${JSON.stringify(body)}`);
   }
   return body;
 }
@@ -43,6 +54,24 @@ async function assertVideo(videoPath) {
   return bytes.length;
 }
 
+async function createReferenceFixture() {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'faceless-reference-'));
+  const output = path.join(dir, 'reference-fixture.mp4');
+  await execFileAsync('ffmpeg', [
+    '-y',
+    '-f', 'lavfi', '-i', 'color=c=black:s=320x240:r=30:d=1',
+    '-f', 'lavfi', '-i', 'color=c=white:s=320x240:r=30:d=1',
+    '-f', 'lavfi', '-i', 'color=c=black:s=320x240:r=30:d=1',
+    '-filter_complex', '[0:v][1:v][2:v]concat=n=3:v=1:a=0,format=yuv420p[outv]',
+    '-map', '[outv]',
+    '-c:v', 'libx264',
+    '-preset', 'ultrafast',
+    '-movflags', '+faststart',
+    output,
+  ], { maxBuffer: 1024 * 1024 * 16 });
+  return { dir, output };
+}
+
 async function waitLegacyRender(jobId) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const status = await json(`/api/render/${encodeURIComponent(jobId)}`);
@@ -62,6 +91,57 @@ async function waitTemplateRender(jobId) {
 }
 
 const health = await waitForHealth();
+
+// Reference-video path: create a real hard-cut MP4, upload it, detect its cuts, and bind a semantic event to the containing scene.
+const referenceFixture = await createReferenceFixture();
+const referenceBytes = await readFile(referenceFixture.output);
+const referenceForm = new FormData();
+referenceForm.append('file', new Blob([referenceBytes], { type: 'video/mp4' }), 'reference-fixture.mp4');
+const uploadedReference = await json('/api/media', { method: 'POST', body: referenceForm });
+const referenceFilename = uploadedReference.media?.filename;
+if (!referenceFilename) throw new Error(`Reference upload returned no filename: ${JSON.stringify(uploadedReference)}`);
+
+const referenceAnalysis = await json('/api/v1/reference-video/analyze', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    filename: referenceFilename,
+    sceneThreshold: 0.1,
+    semantic: {
+      words: [
+        { text: 'Now', start: 1.10, end: 1.22, speaker: 'host' },
+        { text: 'show', start: 1.23, end: 1.38, speaker: 'host' },
+        { text: 'the', start: 1.39, end: 1.49, speaker: 'host' },
+        { text: 'dashboard.', start: 1.50, end: 1.72, speaker: 'host' },
+      ],
+      cues: [{
+        id: 'dashboard-reveal',
+        target: 'accent',
+        phrase: 'show the dashboard',
+        speaker: 'host',
+        padBefore: 0.05,
+        padAfter: 0.10,
+      }],
+    },
+  }),
+});
+await rm(referenceFixture.dir, { recursive: true, force: true });
+
+const analyzedReference = referenceAnalysis.data;
+const referenceEvent = analyzedReference?.semantic?.events?.[0];
+if (
+  analyzedReference?.video?.width !== 320 || analyzedReference?.video?.height !== 240 ||
+  !approx(analyzedReference?.video?.duration, 3, 0.15) || !approx(analyzedReference?.video?.fps, 30, 0.2) ||
+  analyzedReference?.video?.hasAudio !== false ||
+  !Array.isArray(analyzedReference?.cuts) || analyzedReference.cuts.length < 2 ||
+  !Array.isArray(analyzedReference?.scenes) || analyzedReference.scenes.length < 3 ||
+  analyzedReference?.rhythm?.cutCount < 2 ||
+  referenceEvent?.sceneIndex !== 1 ||
+  !approx(referenceEvent?.start, 1.18, 0.02) || !approx(referenceEvent?.end, 1.82, 0.02) ||
+  analyzedReference?.semantic?.modifications?.['accent.transitions.showAt'] !== referenceEvent?.start ||
+  analyzedReference?.semantic?.modifications?.['accent.transitions.hideAt'] !== referenceEvent?.end
+) {
+  throw new Error(`Reference-video analysis was unexpected: ${JSON.stringify(referenceAnalysis)}`);
+}
 
 // Compatibility path remains functional while the generic template engine is developed.
 const scriptResponse = await json('/api/script', {
@@ -166,6 +246,13 @@ if (terminalCancel.data?.accepted !== false || terminalCancel.data?.reason !== '
 console.log(JSON.stringify({
   ok: true,
   health,
+  referenceVideo: {
+    filename: referenceFilename,
+    video: analyzedReference.video,
+    cuts: analyzedReference.cuts,
+    rhythm: analyzedReference.rhythm,
+    semanticEvent: referenceEvent,
+  },
   legacy: { jobId: legacyJobId, videoPath: legacyVideoPath, sampledVideoBytes: legacyBytes },
   semanticTimeline: {
     event: semanticEvent,
