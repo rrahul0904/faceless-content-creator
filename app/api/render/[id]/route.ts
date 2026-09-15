@@ -1,11 +1,13 @@
 import { db } from '@/lib/db';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const workspace = await resolveWorkspace(request);
     const { id } = await context.params;
-    const job = await db.renderJob.findUnique({ where: { id } });
+    const job = await db.renderJob.findFirst({ where: { id, workspaceId: workspace.id } });
     if (!job) {
       return Response.json({ ok: false, error: 'Render job not found' }, { status: 404 });
     }
@@ -15,6 +17,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       ok: true,
       job: {
         id: job.id,
+        workspaceId: workspace.id,
         status: job.status.toLowerCase(),
         finished,
         cancellable: !finished,
@@ -28,6 +31,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       },
     });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to load render job';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

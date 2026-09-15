@@ -13,8 +13,10 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
+    "api-key:create": "node scripts/create-api-key.mjs",
     "render:smoke": "node scripts/smoke-render.mjs",
-    "http:smoke": "node scripts/smoke-http.mjs"
+    "http:smoke": "node scripts/smoke-http.mjs",
+    "auth:smoke": "node scripts/smoke-auth.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

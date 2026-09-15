@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { encryptToken, tokenStorageReady } from '@/lib/token-crypto';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 const PatchAccount = z.object({
   label: z.string().min(1).max(120).optional(),
@@ -14,13 +15,14 @@ const PatchAccount = z.object({
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const workspace = await resolveWorkspace(request);
     const { id } = await context.params;
     const payload = PatchAccount.parse(await request.json());
     if ((payload.accessToken || payload.refreshToken) && !tokenStorageReady()) {
       return Response.json({ ok: false, error: 'Set SOCIAL_TOKEN_KEY (or APP_SECRET) before storing platform credentials.' }, { status: 503 });
     }
 
-    const existing = await db.socialAccount.findUnique({ where: { id } });
+    const existing = await db.socialAccount.findFirst({ where: { id, workspaceId: workspace.id } });
     if (!existing) return Response.json({ ok: false, error: 'Social account not found' }, { status: 404 });
 
     const account = await db.socialAccount.update({
@@ -49,6 +51,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       ok: true,
       account: {
         id: account.id,
+        workspaceId: account.workspaceId,
         platform: account.platform,
         account_name: account.label,
         account_username: account.username,
@@ -57,19 +60,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       },
     });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to update social account';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const workspace = await resolveWorkspace(request);
     const { id } = await context.params;
-    const existing = await db.socialAccount.findUnique({ where: { id } });
+    const existing = await db.socialAccount.findFirst({ where: { id, workspaceId: workspace.id } });
     if (!existing) return Response.json({ ok: false, error: 'Social account not found' }, { status: 404 });
     await db.socialAccount.delete({ where: { id } });
     return Response.json({ ok: true });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to remove social account';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

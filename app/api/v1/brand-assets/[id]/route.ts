@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
@@ -18,18 +19,27 @@ function jsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
-  const asset = await db.brandAsset.findUnique({ where: { id } });
-  if (!asset) return Response.json({ ok: false, error: 'Brand asset not found' }, { status: 404 });
-  return Response.json({ ok: true, data: asset });
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const workspace = await resolveWorkspace(request);
+    const { id } = await context.params;
+    const asset = await db.brandAsset.findFirst({ where: { id, workspaceId: workspace.id } });
+    if (!asset) return Response.json({ ok: false, error: 'Brand asset not found' }, { status: 404 });
+    return Response.json({ ok: true, data: asset });
+  } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
+    const message = error instanceof Error ? error.message : 'Unable to load brand asset';
+    return Response.json({ ok: false, error: message }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const workspace = await resolveWorkspace(request);
     const { id } = await context.params;
     const input = PatchInput.parse(await request.json());
-    const existing = await db.brandAsset.findUnique({ where: { id } });
+    const existing = await db.brandAsset.findFirst({ where: { id, workspaceId: workspace.id } });
     if (!existing) return Response.json({ ok: false, error: 'Brand asset not found' }, { status: 404 });
     const asset = await db.brandAsset.update({
       where: { id },
@@ -45,17 +55,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     });
     return Response.json({ ok: true, data: asset });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to update brand asset';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    await db.brandAsset.delete({ where: { id } });
+    const workspace = await resolveWorkspace(request);
+    const { id } = await context.params;
+    const deleted = await db.brandAsset.deleteMany({ where: { id, workspaceId: workspace.id } });
+    if (deleted.count !== 1) return Response.json({ ok: false, error: 'Brand asset not found' }, { status: 404 });
     return Response.json({ ok: true });
-  } catch {
-    return Response.json({ ok: false, error: 'Brand asset not found' }, { status: 404 });
+  } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
+    const message = error instanceof Error ? error.message : 'Unable to delete brand asset';
+    return Response.json({ ok: false, error: message }, { status: 500 });
   }
 }

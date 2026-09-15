@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { queueAIVideo } from '@/lib/ai-video';
+import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
@@ -14,19 +15,23 @@ const Input = z.object({
 
 export async function POST(request: Request) {
   try {
+    const workspace = await resolveWorkspace(request);
     const payload = Input.parse(await request.json());
-    const job = await queueAIVideo(payload);
+    const job = await queueAIVideo(payload, workspace.id);
     return Response.json({
       ok: true,
       data: {
         id: job.id,
         jobId: job.id,
+        workspaceId: workspace.id,
         status: job.status.toLowerCase(),
         mode: 'async',
         provider: payload.provider,
       },
     }, { status: 202 });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to queue AI video';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

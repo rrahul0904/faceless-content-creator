@@ -122,6 +122,23 @@ try {
               data: { status: 'REVIEW', videoUrl: result.videoUrl },
             });
           }
+
+          if (job.workspaceId) {
+            await tx.usageEvent.create({
+              data: {
+                workspaceId: job.workspaceId,
+                kind: input.kind === 'ai-video-v1' ? 'AI_VIDEO_JOB' : 'RENDER_JOB',
+                quantity: 1,
+                unit: 'job',
+                referenceType: 'render_job',
+                referenceId: jobId,
+                metadata: {
+                  kind: String(input.kind ?? 'legacy-local'),
+                  engine: String(result.engine ?? 'local-ffmpeg'),
+                },
+              },
+            });
+          }
         });
 
         console.log(JSON.stringify({ ok: true, jobId, ...result }));

@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const baseUrl = process.env.SMOKE_BASE_URL ?? 'http://127.0.0.1:3000';
+const smokeApiKey = process.env.SMOKE_API_KEY ?? '';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -20,6 +21,15 @@ async function json(pathname, init) {
   const body = await response.json();
   if (!response.ok) {
     throw new Error(`${init?.method ?? 'GET'} ${pathname} failed (${response.status}): ${JSON.stringify(body)}`);
+  }
+  return body;
+}
+
+async function expectStatus(pathname, status, init) {
+  const response = await fetch(`${baseUrl}${pathname}`, init);
+  const body = await response.json().catch(() => ({}));
+  if (response.status !== status) {
+    throw new Error(`${init?.method ?? 'GET'} ${pathname} returned ${response.status}, expected ${status}: ${JSON.stringify(body)}`);
   }
   return body;
 }
@@ -91,6 +101,26 @@ async function waitTemplateRender(jobId) {
 }
 
 const health = await waitForHealth();
+const workspaceSummary = await json('/api/v1/workspace');
+const workspaceId = workspaceSummary.data?.workspace?.id;
+if (!workspaceId || workspaceSummary.data.workspace.slug !== 'local' || workspaceSummary.data.localMode !== true) {
+  throw new Error(`Local workspace bootstrap failed: ${JSON.stringify(workspaceSummary)}`);
+}
+
+await expectStatus('/api/v1/workspace', 403, {
+  headers: { 'x-workspace-id': 'workspace-that-does-not-exist' },
+});
+await expectStatus('/api/v1/workspace', 401, {
+  headers: { Authorization: 'Bearer fcc_invalid_key_for_smoke_test' },
+});
+
+if (!smokeApiKey.startsWith('fcc_')) throw new Error('CI did not provide a generated workspace API key');
+const authenticatedWorkspace = await json('/api/v1/workspace', {
+  headers: { Authorization: `Bearer ${smokeApiKey}` },
+});
+if (authenticatedWorkspace.data?.workspace?.id !== workspaceId) {
+  throw new Error(`API key resolved the wrong workspace: ${JSON.stringify(authenticatedWorkspace)}`);
+}
 
 // Reference-video path: create a real hard-cut MP4, upload it, detect its cuts, and bind a semantic event to the containing scene.
 const referenceFixture = await createReferenceFixture();
@@ -157,19 +187,28 @@ const legacyQueued = await json('/api/render', {
   body: JSON.stringify({ ...draft, voice: 'en-us', speechRate: 185, template: 'editorial' }),
 });
 const legacyJobId = legacyQueued.job?.id;
-if (!legacyJobId) throw new Error(`Render endpoint returned no job id: ${JSON.stringify(legacyQueued)}`);
+if (!legacyJobId || legacyQueued.job?.workspaceId !== workspaceId) {
+  throw new Error(`Render endpoint returned an invalid tenant-scoped job: ${JSON.stringify(legacyQueued)}`);
+}
 const legacyFinished = await waitLegacyRender(legacyJobId);
-if (legacyFinished.status !== 'succeeded') throw new Error(`Legacy render failed: ${JSON.stringify(legacyFinished)}`);
+if (legacyFinished.status !== 'succeeded' || legacyFinished.workspaceId !== workspaceId) {
+  throw new Error(`Legacy render failed or lost workspace scope: ${JSON.stringify(legacyFinished)}`);
+}
 const legacyVideoPath = legacyFinished.result?.data?.content;
 if (!legacyVideoPath) throw new Error('Completed legacy render has no video URL');
 const legacyBytes = await assertVideo(legacyVideoPath);
 
-// Orshot-class path: seed template gallery, inspect parameter contract, render with dynamic modifications.
+// Orshot-class path: seed workspace-owned template gallery, inspect parameter contract, render with dynamic modifications.
 const bootstrap = await json('/api/v1/templates/bootstrap', { method: 'POST' });
 const templateId = bootstrap.data?.[0]?.id;
-if (!templateId) throw new Error(`Template bootstrap returned no template: ${JSON.stringify(bootstrap)}`);
+if (!templateId || bootstrap.workspaceId !== workspaceId) {
+  throw new Error(`Template bootstrap returned no workspace-scoped template: ${JSON.stringify(bootstrap)}`);
+}
 
 const templateResponse = await json(`/api/v1/templates/${encodeURIComponent(templateId)}`);
+if (templateResponse.data?.workspaceId !== workspaceId) {
+  throw new Error(`Template escaped workspace scope: ${JSON.stringify(templateResponse.data)}`);
+}
 const modContract = templateResponse.data?.document?.modifications;
 if (!Array.isArray(modContract) || !modContract.some((item) => item.key === 'hook') || !modContract.some((item) => item.key === 'voiceover')) {
   throw new Error(`Template parameter contract is incomplete: ${JSON.stringify(modContract)}`);
@@ -227,15 +266,26 @@ const templateQueued = await json(`/api/v1/templates/${encodeURIComponent(templa
   }),
 });
 const templateJobId = templateQueued.data?.jobId;
-if (!templateJobId) throw new Error(`Template render returned no job id: ${JSON.stringify(templateQueued)}`);
+if (!templateJobId || templateQueued.data?.workspaceId !== workspaceId) {
+  throw new Error(`Template render returned an invalid tenant-scoped job: ${JSON.stringify(templateQueued)}`);
+}
 const templateFinished = await waitTemplateRender(templateJobId);
-if (templateFinished.status !== 'succeeded') throw new Error(`Template render failed: ${JSON.stringify(templateFinished)}`);
+if (templateFinished.status !== 'succeeded' || templateFinished.workspaceId !== workspaceId) {
+  throw new Error(`Template render failed or lost workspace scope: ${JSON.stringify(templateFinished)}`);
+}
 const templateVideoPath = templateFinished.result?.url;
 if (!templateVideoPath) throw new Error('Completed template render has no video URL');
 const templateBytes = await assertVideo(templateVideoPath);
 
 const history = await json(`/api/v1/render-jobs?templateId=${encodeURIComponent(templateId)}&limit=10`);
 if (!history.data?.some((job) => job.id === templateJobId)) throw new Error('Template render was not present in render history');
+if (history.data.some((job) => job.workspaceId !== workspaceId)) throw new Error('Render history leaked another workspace');
+
+const usage = await json('/api/v1/usage?days=1');
+const renderedJobs = usage.data?.totals?.RENDER_JOB?.quantity ?? 0;
+if (usage.data?.workspaceId !== workspaceId || renderedJobs < 2) {
+  throw new Error(`Render usage was not metered correctly: ${JSON.stringify(usage)}`);
+}
 
 // Cancellation is idempotent for terminal jobs; this certifies the public contract without a timing race.
 const terminalCancel = await json(`/api/v1/render-jobs/${encodeURIComponent(templateJobId)}/cancel`, { method: 'POST' });
@@ -246,6 +296,8 @@ if (terminalCancel.data?.accepted !== false || terminalCancel.data?.reason !== '
 console.log(JSON.stringify({
   ok: true,
   health,
+  workspace: { id: workspaceId, slug: workspaceSummary.data.workspace.slug, apiKeyAuthenticated: true },
+  usage: { renderJobs: renderedJobs, creditBalance: usage.data.creditBalance },
   referenceVideo: {
     filename: referenceFilename,
     video: analyzedReference.video,

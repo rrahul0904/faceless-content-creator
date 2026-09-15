@@ -49,8 +49,8 @@ export async function listTemplates(workspaceId?: string) {
   });
 }
 
-export async function getTemplate(id: string) {
-  const template = await db.template.findUnique({ where: { id } });
+export async function getTemplate(id: string, workspaceId?: string) {
+  const template = await db.template.findFirst({ where: { id, ...(workspaceId ? { workspaceId } : {}) } });
   if (!template) return null;
   const latestVersion = await db.templateVersion.findFirst({
     where: { templateId: id },
@@ -60,9 +60,9 @@ export async function getTemplate(id: string) {
   return { ...template, document: serializeTemplate(parsed), version: latestVersion?.version ?? 1 };
 }
 
-export async function updateTemplate(id: string, input: unknown) {
+export async function updateTemplate(id: string, input: unknown, workspaceId?: string) {
   const parsed = TemplateDocumentSchema.parse(input);
-  const current = await db.template.findUnique({ where: { id } });
+  const current = await db.template.findFirst({ where: { id, ...(workspaceId ? { workspaceId } : {}) } });
   if (!current) return null;
   const latestVersion = await db.templateVersion.findFirst({
     where: { templateId: id },
@@ -92,11 +92,7 @@ export async function updateTemplate(id: string, input: unknown) {
   return { ...template, document: serializeTemplate(parsed), version };
 }
 
-export async function deleteTemplate(id: string) {
-  try {
-    await db.template.delete({ where: { id } });
-    return true;
-  } catch {
-    return false;
-  }
+export async function deleteTemplate(id: string, workspaceId?: string) {
+  const result = await db.template.deleteMany({ where: { id, ...(workspaceId ? { workspaceId } : {}) } });
+  return result.count === 1;
 }

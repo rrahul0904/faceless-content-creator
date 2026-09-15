@@ -19,8 +19,8 @@ export type TemplateRenderRequest = {
   };
 };
 
-export async function queueTemplateRender(templateId: string, request: TemplateRenderRequest) {
-  const stored = await db.template.findUnique({ where: { id: templateId } });
+export async function queueTemplateRender(templateId: string, request: TemplateRenderRequest, workspaceId?: string) {
+  const stored = await db.template.findFirst({ where: { id: templateId, ...(workspaceId ? { workspaceId } : {}) } });
   if (!stored) return null;
 
   const parsed = TemplateDocumentSchema.parse(stored.document);
@@ -45,6 +45,7 @@ export async function queueTemplateRender(templateId: string, request: TemplateR
 
   const job = await db.renderJob.create({
     data: {
+      workspaceId: workspaceId ?? stored.workspaceId,
       templateId,
       status: 'QUEUED',
       input: asJson(input),
