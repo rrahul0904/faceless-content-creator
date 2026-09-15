@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { enforceUsageLimit, planLimitResponse } from '@/lib/limits';
 import { startPublishWorker } from '@/lib/publish-worker';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
@@ -40,6 +41,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }, { status: 409 });
     }
 
+    await enforceUsageLimit(workspace, 'SOCIAL_PUBLISH', uniqueIds.length);
     const scheduledFor = payload.scheduledFor ? new Date(payload.scheduledFor) : null;
     const isScheduled = Boolean(scheduledFor && scheduledFor.getTime() > Date.now() + 2_000);
 
@@ -88,6 +90,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     const workspaceError = workspaceErrorResponse(error);
     if (workspaceError) return workspaceError;
+    const limitError = planLimitResponse(error);
+    if (limitError) return limitError;
     const message = error instanceof Error ? error.message : 'Unable to queue publication';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

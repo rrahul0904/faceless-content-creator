@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { enforceUsageLimit, planLimitResponse } from '@/lib/limits';
 import { createLocalRenderJob } from '@/lib/render-queue';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
   try {
     const workspace = await resolveWorkspace(request);
     const payload = RenderRequest.parse(await request.json());
+    await enforceUsageLimit(workspace, 'RENDER_JOB');
     const job = await createLocalRenderJob(payload, payload.contentId, workspace.id);
 
     return Response.json({
@@ -35,6 +37,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const workspaceError = workspaceErrorResponse(error);
     if (workspaceError) return workspaceError;
+    const limitError = planLimitResponse(error);
+    if (limitError) return limitError;
     const message = error instanceof Error ? error.message : 'Unable to start local render';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }
