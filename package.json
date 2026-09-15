@@ -16,7 +16,8 @@
     "api-key:create": "node scripts/create-api-key.mjs",
     "render:smoke": "node scripts/smoke-render.mjs",
     "http:smoke": "node scripts/smoke-http.mjs",
-    "auth:smoke": "node scripts/smoke-auth.mjs"
+    "auth:smoke": "node scripts/smoke-auth.mjs",
+    "limits:smoke": "node scripts/smoke-limits.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

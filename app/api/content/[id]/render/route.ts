@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { enforceUsageLimit, planLimitResponse } from '@/lib/limits';
 import { createLocalRenderJob, type LocalTemplate } from '@/lib/render-queue';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
@@ -29,6 +30,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: false, error: 'Content must have a hook and script before rendering' }, { status: 409 });
     }
 
+    await enforceUsageLimit(workspace, 'RENDER_JOB');
     const template = input.template ?? localTemplate(content.channel.templateId);
     const job = await createLocalRenderJob({
       topic: content.topic,
@@ -54,6 +56,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     const workspaceError = workspaceErrorResponse(error);
     if (workspaceError) return workspaceError;
+    const limitError = planLimitResponse(error);
+    if (limitError) return limitError;
     const message = error instanceof Error ? error.message : 'Unable to render content locally';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

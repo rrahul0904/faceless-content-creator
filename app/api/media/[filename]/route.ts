@@ -1,5 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { LOCAL_WORKSPACE_SLUG, resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
@@ -16,8 +17,14 @@ function responseBody(bytes: Buffer) {
 
 export async function GET(request: Request, context: { params: Promise<{ filename: string }> }) {
   try {
+    const workspace = await resolveWorkspace(request);
     const { filename } = await context.params;
     if (!/^[a-zA-Z0-9._-]+$/.test(filename)) return new Response('Not found', { status: 404 });
+
+    const owned = filename.startsWith(`${workspace.id}__`);
+    const legacyLocal = workspace.slug === LOCAL_WORKSPACE_SLUG && !filename.includes('__');
+    if (!owned && !legacyLocal) return new Response('Not found', { status: 404 });
+
     const root = path.resolve(process.cwd(), 'data', 'uploads');
     const file = path.resolve(root, filename);
     if (!file.startsWith(`${root}${path.sep}`)) return new Response('Not found', { status: 404 });
@@ -57,7 +64,9 @@ export async function GET(request: Request, context: { params: Promise<{ filenam
         'Cache-Control': 'private, max-age=3600',
       },
     });
-  } catch {
+  } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
     return new Response('Not found', { status: 404 });
   }
 }

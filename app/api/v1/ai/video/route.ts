@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { queueAIVideo } from '@/lib/ai-video';
+import { enforceUsageLimit, planLimitResponse } from '@/lib/limits';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
   try {
     const workspace = await resolveWorkspace(request);
     const payload = Input.parse(await request.json());
+    await enforceUsageLimit(workspace, 'AI_VIDEO_JOB');
     const job = await queueAIVideo(payload, workspace.id);
     return Response.json({
       ok: true,
@@ -32,6 +34,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const workspaceError = workspaceErrorResponse(error);
     if (workspaceError) return workspaceError;
+    const limitError = planLimitResponse(error);
+    if (limitError) return limitError;
     const message = error instanceof Error ? error.message : 'Unable to queue AI video';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

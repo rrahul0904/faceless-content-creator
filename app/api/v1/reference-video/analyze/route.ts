@@ -1,15 +1,29 @@
 import { ZodError } from 'zod';
+import { enforceMeteredRate, planLimitResponse } from '@/lib/limits';
 import { analyzeReferenceVideo } from '@/lib/reference-video/analyze';
 import { ReferenceVideoAnalyzeRequestSchema } from '@/lib/reference-video/schema';
+import { LOCAL_WORKSPACE_SLUG, resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   try {
+    const workspace = await resolveWorkspace(request);
     const payload = ReferenceVideoAnalyzeRequestSchema.parse(await request.json());
+    const owned = payload.filename.startsWith(`${workspace.id}__`);
+    const legacyLocal = workspace.slug === LOCAL_WORKSPACE_SLUG && !payload.filename.includes('__');
+    if (!owned && !legacyLocal) {
+      return Response.json({ ok: false, error: 'Reference video not found' }, { status: 404 });
+    }
+
+    await enforceMeteredRate(workspace);
     const analysis = await analyzeReferenceVideo(payload);
-    return Response.json({ ok: true, data: analysis });
+    return Response.json({ ok: true, data: analysis, workspaceId: workspace.id });
   } catch (error) {
+    const workspaceError = workspaceErrorResponse(error);
+    if (workspaceError) return workspaceError;
+    const limitError = planLimitResponse(error);
+    if (limitError) return limitError;
     if (error instanceof ZodError) {
       return Response.json({ ok: false, error: 'Invalid reference-video analysis request', issues: error.issues }, { status: 400 });
     }

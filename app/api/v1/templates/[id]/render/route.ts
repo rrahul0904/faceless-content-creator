@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { enforceUsageLimit, planLimitResponse } from '@/lib/limits';
 import { queueTemplateRender } from '@/lib/template-engine/render';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
@@ -21,6 +22,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const workspace = await resolveWorkspace(request);
     const { id } = await context.params;
     const payload = RenderRequest.parse(await request.json().catch(() => ({})));
+    await enforceUsageLimit(workspace, 'RENDER_JOB');
     const queued = await queueTemplateRender(id, payload, workspace.id);
     if (!queued) return Response.json({ ok: false, error: 'Template not found' }, { status: 404 });
 
@@ -37,6 +39,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     const workspaceError = workspaceErrorResponse(error);
     if (workspaceError) return workspaceError;
+    const limitError = planLimitResponse(error);
+    if (limitError) return limitError;
     const message = error instanceof Error ? error.message : 'Unable to queue template render';
     return Response.json({ ok: false, error: message }, { status: 400 });
   }

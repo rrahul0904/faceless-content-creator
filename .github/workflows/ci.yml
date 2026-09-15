@@ -32,7 +32,14 @@ jobs:
       - name: Build zero-config Docker image
         run: docker build -t faceless-content-creator:ci .
       - name: Boot zero-config Docker image
-        run: docker run -d --name faceless-ci -p 3000:3000 faceless-content-creator:ci
+        run: >-
+          docker run -d --name faceless-ci
+          -e FCC_FREE_RENDER_JOBS_PER_MONTH=2
+          -e FCC_FREE_STORAGE_MB=1
+          -e FCC_FREE_METERED_REQUESTS_PER_MINUTE=7
+          -e FCC_FREE_MEMBERS=1
+          -p 3000:3000
+          faceless-content-creator:ci
       - name: Create one-time workspace API key for acceptance
         shell: bash
         run: |
@@ -48,6 +55,10 @@ jobs:
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
+      - name: Exercise plan limits and membership controls
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run limits:smoke
       - name: Boot hosted API-key mode
         run: docker run -d --name faceless-auth-ci -e FCC_AUTH_MODE=api-key -p 3001:3000 faceless-content-creator:ci
       - name: Create hosted-mode operator API key
