@@ -95,6 +95,40 @@ if (!Array.isArray(modContract) || !modContract.some((item) => item.key === 'hoo
   throw new Error(`Template parameter contract is incomplete: ${JSON.stringify(modContract)}`);
 }
 
+// Semantic-video path: anchor a visual window to words, then use the compiler output in a real MP4 render.
+const semantic = await json('/api/v1/semantic-timeline/compile', {
+  method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    fps: 30,
+    words: [
+      { text: 'An', start: 0.00, end: 0.12, speaker: 'host' },
+      { text: 'octopus', start: 0.13, end: 0.45, speaker: 'host' },
+      { text: 'has', start: 0.46, end: 0.58, speaker: 'host' },
+      { text: 'three', start: 0.59, end: 0.84, speaker: 'host' },
+      { text: 'hearts.', start: 0.85, end: 1.10, speaker: 'host' },
+    ],
+    cues: [{
+      id: 'accent-on-three-hearts',
+      target: 'accent',
+      phrase: 'three hearts',
+      speaker: 'host',
+      padBefore: 0.09,
+      padAfter: 0.15,
+    }],
+  }),
+});
+const semanticEvent = semantic.data?.events?.[0];
+const semanticModifications = semantic.data?.modifications;
+if (
+  semanticEvent?.wordStartIndex !== 3 || semanticEvent?.wordEndIndex !== 4 ||
+  semanticEvent?.start !== 0.5 || semanticEvent?.end !== 1.25 ||
+  semanticEvent?.startFrame !== 15 || semanticEvent?.endFrameExclusive !== 38 ||
+  semanticModifications?.['accent.transitions.showAt'] !== 0.5 ||
+  semanticModifications?.['accent.transitions.hideAt'] !== 1.25
+) {
+  throw new Error(`Semantic timeline compilation was unexpected: ${JSON.stringify(semantic)}`);
+}
+
 const templateQueued = await json(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -107,6 +141,7 @@ const templateQueued = await json(`/api/v1/templates/${encodeURIComponent(templa
       voiceover: 'An octopus has three hearts. Two pump blood to the gills, while the third sends blood around the body. Even stranger, the main heart stops beating when the octopus swims.',
       'accent.fill': '#67E8F9',
       'hook.style.fontSize': 74,
+      ...semanticModifications,
     },
     response: { format: 'mp4', mode: 'async', size: { width: 720, height: 1280 } },
   }),
@@ -132,6 +167,10 @@ console.log(JSON.stringify({
   ok: true,
   health,
   legacy: { jobId: legacyJobId, videoPath: legacyVideoPath, sampledVideoBytes: legacyBytes },
+  semanticTimeline: {
+    event: semanticEvent,
+    modifications: semanticModifications,
+  },
   templateEngine: {
     templateId,
     jobId: templateJobId,

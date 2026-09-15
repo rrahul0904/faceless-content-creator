@@ -175,6 +175,21 @@ export function applyModifications(source: TemplateDocument, changes: Record<str
         continue;
       }
 
+      if (parts[0] === 'transitions') {
+        element.transitions = element.transitions ?? {
+          showAt: 0,
+          enterType: 'none',
+          enterDuration: 0.4,
+          exitType: 'none',
+          exitDuration: 0.4,
+          easing: 'ease-out',
+          ambient: 'none',
+        };
+        if (parts.length === 1 && value === null) element.transitions = undefined;
+        else setNested(element.transitions as Record<string, unknown>, parts.slice(1), value);
+        continue;
+      }
+
       if (parts[0] === 'style') {
         setNested(element.style as Record<string, unknown>, parts.slice(1), value);
         continue;
