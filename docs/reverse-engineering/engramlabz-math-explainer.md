@@ -95,3 +95,20 @@ Math-To-Manim's public MIT repository is useful evidence for typed stage artifac
 
 ## Boundaries
 No EngramLabz private source, prompts, branding, themes, media or proprietary timing data are used. Public claims remain source claims until independently reproduced. No deployment or production-readiness claim is made by this Phase A slice.
+
+## Additional comparator research
+
+The category already shows that editing and fast iteration are material differentiators:
+
+- AnimG exposes a browser Manim playground where users can edit generated code, render again, and choose quality levels. Its public product also presents a prompt → reviewed plan → generated Manim code → render workflow.
+- ManimLabs markets a no-code visual timeline, editable scenes, LaTeX/2D/3D tooling, AI-assisted scene creation, and a local Manim render agent with higher-resolution export.
+- Academa/manimx publicly emphasizes real-time browser preview and an AI agent that can inspect rendered frames and iterate, rather than generating code without visual feedback.
+
+These comparators reinforce RE-359 Phase D: editing, preview, revision history and partial rerender should be core product surfaces rather than deferred convenience features. They also reinforce a render-review loop in which generated visuals are inspected as artifacts, not trusted solely because source code compiled.
+
+Comparator sources:
+- https://animg.app/
+- https://animg.app/playground
+- https://www.manimlabs.com/
+- https://studio.academa.ai/
+
