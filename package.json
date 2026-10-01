@@ -17,7 +17,8 @@
     "render:smoke": "node scripts/smoke-render.mjs",
     "http:smoke": "node scripts/smoke-http.mjs",
     "auth:smoke": "node scripts/smoke-auth.mjs",
-    "limits:smoke": "node scripts/smoke-limits.mjs"
+    "limits:smoke": "node scripts/smoke-limits.mjs",
+    "math-explainer:smoke": "node scripts/smoke-math-explainer.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
