@@ -79,13 +79,32 @@ jobs:
           SMOKE_BASE_URL: http://127.0.0.1:3001
           SMOKE_API_KEY: ${{ env.HOSTED_SMOKE_API_KEY }}
         run: npm run auth:smoke
+      - name: Boot isolated math-explainer acceptance container
+        run: >-
+          docker run -d --name faceless-math-ci
+          -e FCC_FREE_METERED_REQUESTS_PER_MINUTE=100
+          -p 3002:3000
+          faceless-content-creator:ci
+      - name: Exercise Monty Hall explain-not-assert contract
+        shell: bash
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3002
+        run: |
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:3002/api/health >/dev/null; then break; fi
+            if [ "$attempt" = 40 ]; then exit 1; fi
+            sleep 1
+          done
+          npm run math-explainer:smoke
       - name: Show container logs on failure
         if: failure()
         run: |
           docker logs faceless-ci || true
           docker logs faceless-auth-ci || true
+          docker logs faceless-math-ci || true
       - name: Stop smoke containers
         if: always()
         run: |
           docker rm -f faceless-ci || true
           docker rm -f faceless-auth-ci || true
+          docker rm -f faceless-math-ci || true
