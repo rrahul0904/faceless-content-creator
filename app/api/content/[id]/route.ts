@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
 const PatchInput = z.object({
-  status: z.enum(['IDEA', 'SCRIPTED', 'RENDERING', 'REVIEW', 'APPROVED', 'SCHEDULED', 'PUBLISHED', 'FAILED']).optional(),
+  status: z.enum(['IDEA', 'SCRIPTED', 'REVIEW', 'FAILED']).optional(),
   hook: z.string().optional(),
   script: z.string().optional(),
   caption: z.string().optional(),
