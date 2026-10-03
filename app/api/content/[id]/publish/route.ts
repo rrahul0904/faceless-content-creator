@@ -23,6 +23,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!content.videoUrl) {
       return Response.json({ ok: false, error: 'Content must have a rendered video before publishing' }, { status: 409 });
     }
+    if (content.status !== 'APPROVED') {
+      return Response.json({
+        ok: false,
+        error: 'Content must be explicitly approved before publishing',
+        status: content.status.toLowerCase(),
+      }, { status: 409 });
+    }
 
     const uniqueIds = [...new Set(payload.accountIds)];
     const accounts = await db.socialAccount.findMany({
@@ -60,13 +67,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         }));
       }
 
-      await tx.contentItem.update({
-        where: { id: content.id },
-        data: {
-          status: isScheduled ? 'SCHEDULED' : 'APPROVED',
-          scheduledFor: isScheduled ? scheduledFor : null,
-        },
-      });
+      if (isScheduled) {
+        await tx.contentItem.update({
+          where: { id: content.id },
+          data: { status: 'SCHEDULED', scheduledFor },
+        });
+      }
       return created;
     });
 
