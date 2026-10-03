@@ -1,0 +1,1 @@
+'use strict';const focus=require('../data/research-focus.json');module.exports=async function(req,res){if(req.method!=='GET')return res.status(405).json({error:'METHOD_NOT_ALLOWED'});res.setHeader('Cache-Control','no-store');return res.status(200).json(focus);};
