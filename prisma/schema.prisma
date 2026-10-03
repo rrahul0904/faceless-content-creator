@@ -69,6 +69,12 @@ enum CreditLedgerType {
   ADJUSTMENT
 }
 
+enum SeriesCadence {
+  DAILY
+  WEEKDAYS
+  WEEKLY
+}
+
 model Workspace {
   id                  String               @id @default(cuid())
   name                String
@@ -78,6 +84,7 @@ model Workspace {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   channels            Channel[]
+  series              Series[]
   templates           Template[]
   brandAssets         BrandAsset[]
   social              SocialAccount[]
@@ -201,8 +208,34 @@ model Channel {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   contents    ContentItem[]
+  series      Series[]
 
   @@index([workspaceId])
+}
+
+model Series {
+  id               String        @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channelId        String
+  channel          Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  name             String
+  brief            String
+  audience         String?
+  cadence          SeriesCadence @default(DAILY)
+  weekday          Int?
+  hour             Int           @default(9)
+  minute           Int           @default(0)
+  timezone         String        @default("UTC")
+  status           String        @default("ACTIVE")
+  approvalRequired Boolean       @default(true)
+  nextRunAt        DateTime?
+  lastRunAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([workspaceId, status, nextRunAt])
+  @@index([channelId, updatedAt])
 }
 
 model Template {
@@ -266,6 +299,7 @@ model ContentItem {
   caption      String?
   statNumber   String?
   statLabel    String?
+  visuals      Json?
   status       ContentStatus @default(IDEA)
   renderJobId  String?       @unique
   renderJob    RenderJob?    @relation(fields: [renderJobId], references: [id], onDelete: SetNull)
