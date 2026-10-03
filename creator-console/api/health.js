@@ -1,0 +1,1 @@
+'use strict';module.exports=async function(req,res){res.setHeader('Cache-Control','no-store');return res.status(200).json({ok:true,service:'creator-console',contextSchema:'creator-context-packet/v2',referenceCorpus:19,modelConfigured:Boolean(process.env.OPENAI_API_KEY),model:process.env.OPENAI_MODEL||null,publishers:{linkedin:'not-connected',medium:'draft-only'}});};
