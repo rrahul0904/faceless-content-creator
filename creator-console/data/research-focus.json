@@ -1,0 +1,33 @@
+{
+  "version": "creator-research-focus/v1",
+  "mission": "Find timely, technically useful ideas that can be taught clearly in a 2-3 minute LinkedIn post and a short Medium article.",
+  "topics": [
+    {"id":"snowflake","label":"Snowflake","aliases":["Snowflake AI Data Cloud","Cortex","Snowpark","Dynamic Tables","Iceberg","Interactive Warehouses"]},
+    {"id":"snowflake-vs-databricks","label":"Snowflake vs Databricks","aliases":["Snowflake Databricks comparison","Unity Catalog vs Horizon","warehouse vs lakehouse","Iceberg interoperability"]},
+    {"id":"databricks","label":"Databricks","aliases":["Lakehouse","Unity Catalog","Mosaic AI","Spark","Delta Lake"]},
+    {"id":"openai","label":"OpenAI","aliases":["OpenAI API","GPT","Responses API","agents","reasoning models"]},
+    {"id":"anthropic","label":"Anthropic","aliases":["Anthropic API","Claude models","Constitutional AI"]},
+    {"id":"claude","label":"Claude","aliases":["Claude Code","Claude API","Claude agents"]},
+    {"id":"codex","label":"Codex","aliases":["OpenAI Codex","coding agents","software engineering agents"]},
+    {"id":"llm","label":"LLM","aliases":["large language models","inference","prompting","reasoning","context windows","evals"]},
+    {"id":"rag","label":"RAG","aliases":["retrieval augmented generation","vector search","embeddings","reranking","grounding","semantic search"]}
+  ],
+  "discoveryLane": {
+    "id": "important-ai-developments",
+    "label": "Important new AI developments",
+    "include": ["model releases","agent frameworks","MCP and tool use","reasoning","AI coding","RAG and retrieval","AI data engineering","enterprise AI architecture","inference and serving","evaluation and observability"],
+    "rule": "Admit an off-list topic only when the development is materially important and can be explained with trustworthy evidence."
+  },
+  "selectionRules": [
+    "Prefer developments that materially change architecture, cost, performance, developer workflow, governance, or enterprise adoption.",
+    "Prefer topics that can be explained with one clear technical idea rather than broad news summaries.",
+    "Prioritize official documentation, release notes, engineering blogs, repositories, and primary announcements for factual claims.",
+    "Use practitioner posts and benchmarks as secondary evidence or structural inspiration, not as unquestioned truth.",
+    "Do not manufacture hands-on experience, benchmarks, customer results, or first-person claims.",
+    "Avoid posting merely because a topic is trending; it must teach something useful."
+  ],
+  "formats": {
+    "linkedin": {"targetReadMinutes":"2-3","targetWords":"280-500","shape":["technical hook","what changed or what the concept is","why it matters","small example or architecture explanation","tradeoff or caveat","practical takeaway","1-3 primary sources"]},
+    "medium": {"targetReadMinutes":"2-3","targetWords":"500-800","shape":["title + subtitle","problem or development","2-4 compact sections","example or architecture explanation","tradeoffs","practical takeaway","sources"]}
+  }
+}
