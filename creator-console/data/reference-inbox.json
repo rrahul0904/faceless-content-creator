@@ -1,0 +1,62 @@
+[
+  {
+    "id":"ajeya-llm-gateway-latency",
+    "creator":"Ajeya Krishna",
+    "platform":"linkedin",
+    "originalUrl":"https://lnkd.in/p/giWYVwTT",
+    "url":"https://www.linkedin.com/posts/ajeya-krishna12_llm-aiengineering-mlops-share-7512421991325376512-QMtv/",
+    "topic":"LLM gateway latency versus model-call latency",
+    "signals":["benchmark-led","myth-busting","AI-engineering","MLOps","platform-engineering","quantitative-hook","architecture"],
+    "notes":"Resolved from the user-supplied shortlink. Public metadata opens with a 0.66 ms gateway-overhead versus 812 ms LLM-call comparison. Treat the post as style/reference intelligence; validate benchmark conditions independently before reusing any numbers. LiteLLM's official gateway benchmark is a relevant primary-source check."
+  },
+  {
+    "id":"dash-cortex-agent-ga",
+    "creator":"Dash DesAI",
+    "platform":"linkedin",
+    "originalUrl":"https://lnkd.in/p/g2vtD8DY",
+    "url":"https://www.linkedin.com/posts/dash-desai_ai-snowflake-cortexagents-share-7507786158345596928-aPkX/",
+    "topic":"Snowflake Cortex Agent object enhancements GA",
+    "signals":["breaking-news-hook","snowflake","cortex-agents","GA-announcement","feature-breakdown","production-governance","official-source"],
+    "notes":"Resolved from the user-supplied shortlink. The post explains four GA enhancements: temporary agents, secure agents, COPY GRANTS support, and agents in Personal Databases, then links to Snowflake release notes. Strong reference for announcement → feature mechanics → production implication → official source structure."
+  },
+  {
+    "id":"tanmay-databricks-growth-story",
+    "creator":"Tanmay Garg",
+    "platform":"linkedin",
+    "originalUrl":"https://lnkd.in/p/gJKY37Xn",
+    "url":"https://www.linkedin.com/posts/tanmay-garg-72b7a5182_databricks-ai-artificialintelligence-share-7512382752885768192-Ry4d/",
+    "topic":"Databricks valuation and business-growth narrative",
+    "signals":["quantitative-hook","timeline","company-story","databricks","business-context","data-storytelling","needs-independent-verification"],
+    "notes":"Resolved from the user-supplied shortlink. Public metadata uses a valuation/revenue timeline to tell the Databricks platform-expansion story. Useful as a storytelling pattern, not as a factual source: every valuation and revenue figure must be independently verified before publication."
+  },
+  {
+    "id":"patrick-databricks-model-rollout",
+    "creator":"Patrick Wendell",
+    "platform":"linkedin",
+    "originalUrl":"https://lnkd.in/p/gEEygdjp",
+    "url":"https://www.linkedin.com/posts/patrick-wendell_weve-invested-a-lot-at-databricks-to-be-share-7510449535786237952--Ezk/",
+    "topic":"Databricks Day-1 frontier-model rollout and evaluation",
+    "signals":["first-party-engineering","model-evaluation","AI-governance","cost-controls","rollout-playbook","enterprise-AI","databricks"],
+    "notes":"Resolved from the user-supplied shortlink. The destination title is 'Migrating AI Models to Employees on Day 1 at Databricks' and aligns with Databricks' official engineering post describing experimental release, per-user budgets, evaluation signals, and promote/drop decisions. Strong reference for evidence-rich internal engineering storytelling."
+  },
+  {
+    "id":"reddit-snowflake-m5cchbnsxt",
+    "creator":"Pending resolution",
+    "platform":"reddit",
+    "originalUrl":"https://www.reddit.com/r/snowflake/s/m5CChBnsxT",
+    "url":"https://www.reddit.com/r/snowflake/s/m5CChBnsxT",
+    "topic":"Unresolved r/snowflake community reference m5CChBnsxT",
+    "signals":["community-reference","snowflake","reference-only","unresolved-shortlink"],
+    "notes":"User-supplied Reddit share URL. Reddit returned HTTP 403 to both public and deployed resolution attempts, so no title, post claim, comment sentiment, or technical conclusion is inferred yet."
+  },
+  {
+    "id":"reddit-snowflake-ujtfzspgmd",
+    "creator":"Pending resolution",
+    "platform":"reddit",
+    "originalUrl":"https://www.reddit.com/r/snowflake/s/UJtFzSpGMD",
+    "url":"https://www.reddit.com/r/snowflake/s/UJtFzSpGMD",
+    "topic":"Unresolved r/snowflake community reference UJtFzSpGMD",
+    "signals":["community-reference","snowflake","reference-only","unresolved-shortlink"],
+    "notes":"User-supplied Reddit share URL. Reddit returned HTTP 403 to both public and deployed resolution attempts, so no title, post claim, comment sentiment, or technical conclusion is inferred yet."
+  }
+]
