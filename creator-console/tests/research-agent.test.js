@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {extractLinks,parseFeed,dateFromText,detailMetadata,meaningfulDescription,score,dedupe}=require('../lib/research-agent');
+const {extractLinks,parseFeed,dateFromText,cleanTitle,detailMetadata,meaningfulDescription,score,dedupe,diversified}=require('../lib/research-agent');
 
 test('official crawler keeps relevant same-host links only',()=>{
   const source={id:'openai',vendor:'OpenAI',url:'https://openai.com/news/',patterns:['/index/','/news/']};
@@ -17,6 +17,11 @@ test('RSS fallback parses official relevant items',()=>{
   const out=parseFeed(xml,source);
   assert.equal(out.length,1);
   assert.equal(out[0].publishedAt,'2026-10-02');
+});
+
+test('vendor title chrome is removed before display',()=>{
+  assert.equal(cleanTitle('Platform & Products & Announcements September 30, 2026 Introducing ai_decide: make fast decisions on your governed data 5 min read'),'Introducing ai_decide: make fast decisions on your governed data');
+  assert.equal(cleanTitle('Sep 18, 2026 Announcements Partnering with Accenture on embedded evaluation'),'Partnering with Accenture on embedded evaluation');
 });
 
 test('abbreviated official dates normalize',()=>{assert.equal(dateFromText('Sep 18, 2026 Announcements'),'2026-09-18')});
@@ -37,6 +42,18 @@ test('research score rewards teachable architecture topics',()=>{
   assert.equal(s.fit,5);
   assert.equal(s.teachability,5);
   assert.ok(s.potential>=90);
+});
+
+test('generic marketing story scores below technical architecture story',()=>{
+  const technical=score({title:'New agent architecture for inference latency, cost, governance and observability',url:'https://example.com/blog/agent'});
+  const marketing=score({title:'Agentic marketing improves customer experience',url:'https://example.com/blog/marketing'});
+  assert.ok(technical.potential>marketing.potential);
+});
+
+test('diversified ranking avoids one-vendor takeover',()=>{
+  const input=[...Array(8)].map((_,i)=>({vendor:'A',id:`a${i}`})).concat([...Array(3)].map((_,i)=>({vendor:'B',id:`b${i}`})));
+  const out=diversified(input,6);
+  assert.ok(out.filter(x=>x.vendor==='B').length>=2);
 });
 
 test('dedupe collapses tracking variants and trailing slash variants',()=>{
