@@ -3,6 +3,8 @@ const {discover}=require('../lib/research-agent');
 const store=require('../lib/store');
 module.exports=async function(req,res){
   if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({error:'METHOD_NOT_ALLOWED'});
+  const secret=process.env.CRON_SECRET;
+  if(!secret||req.headers.authorization!==`Bearer ${secret}`)return res.status(401).json({error:'UNAUTHORIZED'});
   try{
     const result=await discover({limit:50,enrichLimit:16});let persisted=0,persistence='not-configured';
     if(store.config().configured){const saved=await store.saveResearch(result.items);persisted=Array.isArray(saved)?saved.length:0;persistence='durable';}
