@@ -8,7 +8,9 @@ const {sign,verify}=require('../lib/approval');
 module.exports=async function(req,res){
   const technical=score({title:'New agent architecture for inference latency cost governance and observability',url:'https://example.com/agent'}),marketing=score({title:'Agentic marketing improves customer experience',url:'https://example.com/marketing'});
   const approvalSecret='creator-console-selftest-secret',approved='exact approved copy',receipt=sign({runId:'selftest',platform:'linkedin',draft:approved,ttlSeconds:600},approvalSecret);
-  const diverse=diversified([...Array(8)].map((_,i)=>({vendor:'A',id:`a${i}`})).concat([...Array(3)].map((_,i)=>({vendor:'B',id:`b${i}`})),6);
+  const vendorA=[...Array(8)].map((_,i)=>({vendor:'A',id:`a${i}`}));
+  const vendorB=[...Array(3)].map((_,i)=>({vendor:'B',id:`b${i}`}));
+  const diverse=diversified(vendorA.concat(vendorB),6);
   const context=buildContextPacket({topic:'Snowflake Cortex Agents production governance',platform:'linkedin',topK:12});
   const dash=context.selected.find(x=>x.id==='dash-cortex-agent-ga');
   const checks={
