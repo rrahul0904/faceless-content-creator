@@ -7,7 +7,7 @@ module.exports=async function(req,res){
   res.setHeader('Cache-Control','no-store');
   return res.status(200).json({
     ok:true,service:'creator-console',contextSchema:'creator-context-packet/v2',referenceCorpus:references.length,
-    research:{mode:'official-source-discovery',sources:['OpenAI','Anthropic','Snowflake','Databricks'],scheduledRefresh:'0 */6 * * *',primarySourceEnrichment:true,verifiedSeedFallback:true},
+    research:{mode:'official-source-discovery',sources:['OpenAI','Anthropic','Snowflake','Databricks'],scheduledRefresh:'0 11 * * *',scheduledRefreshUtc:'11:00 UTC daily',liveOnDemand:true,primarySourceEnrichment:true,verifiedSeedFallback:true},
     researchTopics:focus.topics.map(x=>x.label),discoveryLane:focus.discoveryLane.label,formats:focus.formats,
     modelConfigured,model:modelConfigured?(process.env.OPENAI_MODEL||'gpt-5.6-sol'):null,
     storage:{configured:storageConfigured,provider:'supabase-postgrest',browserFallback:true},
