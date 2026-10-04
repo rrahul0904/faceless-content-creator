@@ -1,0 +1,87 @@
+[
+  {
+    "id": "databricks-ai-decide-2026-09-30",
+    "vendor": "Databricks",
+    "topic": "Databricks ai_decide: fast decisions over governed data",
+    "publishedAt": "2026-09-30",
+    "sourceTitle": "Introducing ai_decide: make fast decisions on your governed data",
+    "sourceUrl": "https://www.databricks.com/blog/introducing-aidecide-make-fast-decisions-your-governed-data",
+    "summary": "Databricks introduced ai_decide, an AI Function optimized for fast structured decisions rather than long-form generation, including routing, tagging and agent evaluation use cases.",
+    "whyItMatters": "This is a strong educational topic because it exposes an architectural distinction between generation and decision workloads, with implications for latency, cost and governance.",
+    "categories": ["Databricks", "LLM", "AI Architecture"],
+    "signals": {"fit": 5, "novelty": 5, "evidence": 5, "teachability": 5},
+    "angleSuggestions": [
+      "When should you use a decision model instead of a generative LLM?",
+      "Why AI routing does not always need a large language model",
+      "The cost and latency case for specialized AI functions"
+    ]
+  },
+  {
+    "id": "snowflake-gpt6-cortex-2026-09-28",
+    "vendor": "Snowflake",
+    "topic": "GPT-6 Sol and Luna arrive in Snowflake Cortex AI",
+    "publishedAt": "2026-09-28",
+    "sourceTitle": "Announcing GPT-6 Sol and Luna on Snowflake Cortex AI",
+    "sourceUrl": "https://www.snowflake.com/en/blog/openai-gpt-6-sol-luna-snowflake-cortex-ai/",
+    "summary": "Snowflake announced GPT-6 Sol and Luna in public preview through Cortex Inference, with calls running inside Snowflake's security and governance perimeter.",
+    "whyItMatters": "This creates a useful architecture lesson around bringing frontier models to governed enterprise data instead of moving sensitive data out to separate AI stacks.",
+    "categories": ["Snowflake", "OpenAI", "LLM", "Governance"],
+    "signals": {"fit": 5, "novelty": 4, "evidence": 5, "teachability": 5},
+    "angleSuggestions": [
+      "What changes when frontier inference lives inside the data platform?",
+      "Snowflake Cortex AI vs calling an external model endpoint directly",
+      "Governance boundaries for enterprise LLM inference"
+    ]
+  },
+  {
+    "id": "anthropic-sonnet55-2026-09-28",
+    "vendor": "Anthropic",
+    "topic": "Claude Sonnet 5.5: faster and cheaper than Sonnet 5",
+    "publishedAt": "2026-09-28",
+    "sourceTitle": "Introducing Claude Sonnet 5.5",
+    "sourceUrl": "https://www.anthropic.com/news",
+    "summary": "Anthropic describes Claude Sonnet 5.5 as an upgrade over Sonnet 5 that runs 30% faster and costs up to 30% less for most work.",
+    "whyItMatters": "The interesting lesson is not just a new model release; it is how architects should evaluate capability, latency and cost together before changing production defaults.",
+    "categories": ["Anthropic", "Claude", "LLM", "AI Architecture"],
+    "signals": {"fit": 5, "novelty": 5, "evidence": 5, "teachability": 4},
+    "angleSuggestions": [
+      "Why model upgrades should be evaluated on cost-performance, not benchmark hype",
+      "A practical model-upgrade checklist for enterprise teams",
+      "When a cheaper/faster model is the better production choice"
+    ]
+  },
+  {
+    "id": "openai-agents-api-2026-09-10",
+    "vendor": "OpenAI",
+    "topic": "OpenAI Agents API: the harness becomes a managed platform primitive",
+    "publishedAt": "2026-09-10",
+    "sourceTitle": "Introducing the Agents API",
+    "sourceUrl": "https://openai.com/index/introducing-the-agents-api/",
+    "summary": "OpenAI introduced the Agents API in public beta for building and running cloud agents with a managed harness, including context management, tools, subagents and durable execution infrastructure.",
+    "whyItMatters": "This is directly useful for explaining why production agents are more than an LLM loop: the harness, context, environment, tools and reliability layer are separate engineering concerns.",
+    "categories": ["OpenAI", "Codex", "Agents", "Harness Engineering"],
+    "signals": {"fit": 5, "novelty": 5, "evidence": 5, "teachability": 5},
+    "angleSuggestions": [
+      "Why the agent loop is the easy part and the harness is the product",
+      "What a production agent harness actually needs",
+      "Managed agent infrastructure vs building your own harness"
+    ]
+  },
+  {
+    "id": "databricks-frontier-model-rollout-2026-09-28",
+    "vendor": "Databricks",
+    "topic": "How Databricks evaluates frontier models before rolling them out internally",
+    "publishedAt": "2026-09-28",
+    "sourceTitle": "How Databricks rolls out frontier models to 12,000 employees on Day 1",
+    "sourceUrl": "https://www.databricks.com/blog/how-databricks-rolls-out-frontier-models-14000-employees-day-1",
+    "summary": "Databricks described its internal process for evaluating frontier models before company-wide rollout, emphasizing quality regression risk and cost controls rather than assuming every new model should become the default.",
+    "whyItMatters": "This gives us a concrete, evidence-backed way to teach model governance, evaluation harnesses and rollout strategy rather than writing another generic model-comparison post.",
+    "categories": ["Databricks", "LLM", "Evaluation", "Governance"],
+    "signals": {"fit": 5, "novelty": 4, "evidence": 5, "teachability": 5},
+    "angleSuggestions": [
+      "Why every new frontier model should go through an evaluation gate",
+      "A model rollout architecture for enterprise AI teams",
+      "Quality regression and cost explosion: two risks hidden by model launch hype"
+    ]
+  }
+]
