@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {extractLinks,parseFeed,dateFromText,detailMetadata,score,dedupe}=require('../lib/research-agent');
+const {extractLinks,parseFeed,dateFromText,detailMetadata,meaningfulDescription,score,dedupe}=require('../lib/research-agent');
 
 test('official crawler keeps relevant same-host links only',()=>{
   const source={id:'openai',vendor:'OpenAI',url:'https://openai.com/news/',patterns:['/index/','/news/']};
@@ -22,9 +22,14 @@ test('RSS fallback parses official relevant items',()=>{
 test('abbreviated official dates normalize',()=>{assert.equal(dateFromText('Sep 18, 2026 Announcements'),'2026-09-18')});
 
 test('primary source metadata extracts description and publish date',()=>{
-  const md=detailMetadata('<meta property="og:description" content="A concrete architecture update"><meta property="article:published_time" content="2026-10-01T12:00:00Z">');
-  assert.equal(md.description,'A concrete architecture update');
+  const md=detailMetadata('<meta property="og:description" content="A concrete architecture update that explains the new agent evaluation workflow, its operational trade-offs, and the deployment impact for enterprise teams."><meta property="article:published_time" content="2026-10-01T12:00:00Z">');
   assert.equal(md.publishedAt,'2026-10-01');
+  assert.equal(meaningfulDescription(md.description),true);
+});
+
+test('thin metadata cannot qualify as generation-ready evidence',()=>{
+  assert.equal(meaningfulDescription('With'),false);
+  assert.equal(meaningfulDescription('Agents that interact'),false);
 });
 
 test('research score rewards teachable architecture topics',()=>{
