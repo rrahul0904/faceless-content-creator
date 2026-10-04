@@ -1,0 +1,66 @@
+{
+  "schema": "creator-product-research/v1",
+  "researchedAt": "2026-10-03",
+  "principles": [
+    {
+      "id": "no-blank-page",
+      "title": "Do not start from a blank prompt",
+      "insight": "Creator tools fail when the user still has to invent the idea. Surface something worth reacting to, then ask for the creator's take.",
+      "productDecision": "Today is the default screen. Every research card has Add my take and Create lesson actions.",
+      "sources": [
+        "https://www.reddit.com/r/Entrepreneurs/comments/1tjqqpm/i_was_getting_generic_ai_linkedin_posts_so_i/",
+        "https://www.reddit.com/r/AiAutomations/comments/1pn577e/how_can_i_consistently_source_toptier_ai_insights/"
+      ]
+    },
+    {
+      "id": "context-before-generation",
+      "title": "Perspective and memory beat prompt templates",
+      "insight": "Generic AI output is often a missing-context problem. Role, expertise, prior writing and explicit opinions should be retrieved before generation.",
+      "productDecision": "Creator context remains a first-class layer, but is edited in Memory rather than dumped into the main compose screen.",
+      "sources": [
+        "https://www.reddit.com/r/DigitalMarketing/comments/1sv7ypb/why_most_aigenerated_linkedin_comments_sound_the/",
+        "https://www.reddit.com/r/SideProject/comments/1sb6vdt/i_built_an_ai_linkedin_post_generator_that/"
+      ]
+    },
+    {
+      "id": "separate-agents",
+      "title": "Writing and judging should be separate jobs",
+      "insight": "Multi-step generation, review and editing is a recurring pattern among tools trying to avoid generic one-shot output.",
+      "productDecision": "Keep writer, critic and revision stages in the harness; show only quality status and evidence to the user by default.",
+      "sources": [
+        "https://www.reddit.com/r/SideProject/comments/1v1ku18/built_an_ai_tool_to_write_linkedin_posts_that/",
+        "https://www.reddit.com/r/SideProject/comments/1sb6vdt/i_built_an_ai_linkedin_post_generator_that/"
+      ]
+    },
+    {
+      "id": "research-and-write-together",
+      "title": "Research and drafting should share one workspace",
+      "insight": "Writers dislike moving evidence between research tools, chats and editors.",
+      "productDecision": "The Research panel, source packet, personal take and editor live in one continuous workflow.",
+      "sources": [
+        "https://www.reddit.com/r/AIToolsAndTips/comments/1vf8k9h/the_ai_writing_tools_that_actually_made_it_into/",
+        "https://www.reddit.com/r/ProductivityApps/comments/1wtiouj/ai_writing_tools_i_use_pretty_much_every_day/"
+      ]
+    },
+    {
+      "id": "ranked-queue",
+      "title": "A ranked work queue beats a giant chat box",
+      "insight": "Operational dashboards work when they prioritize the next decision and expose status, confidence and action without extra navigation.",
+      "productDecision": "Today uses scored research cards with source, age, why-it-matters, status and one-click actions.",
+      "sources": [
+        "https://developers.reddit.com/apps/morddit",
+        "https://developers.reddit.com/apps/build-this"
+      ]
+    },
+    {
+      "id": "human-approval",
+      "title": "AI prepares; creator approves",
+      "insight": "Useful agent workflows prepare the work and put it in an approval queue rather than silently taking irreversible actions.",
+      "productDecision": "Publishing stays behind explicit approval, with run receipts and exact content snapshots.",
+      "sources": [
+        "https://sr.reddit.com/r/SaaS/comments/1u2uj2t/i_spent_3_hours_on_email_last_tuesday_developers/",
+        "https://developers.reddit.com/apps/cgbaov2"
+      ]
+    }
+  ]
+}
