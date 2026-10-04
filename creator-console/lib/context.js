@@ -1,5 +1,5 @@
 'use strict';
-const defaultReferences = require('../data/references.json');
+const defaultReferences = [...require('../data/references.json'),...require('../data/reference-inbox.json')];
 const STOP = new Set(['the','a','an','and','or','but','to','of','in','on','for','with','is','are','was','were','be','been','being','that','this','these','those','it','its','as','at','by','from','about','into','over','after','before','we','you','i','they','he','she','them','our','your','my','their','not','can','could','should','would','will','do','does']);
 function tokenize(v){return String(v||'').toLowerCase().replace(/https?:\/\/\S+/g,' ').replace(/[^a-z0-9+#.\- ]+/g,' ').split(/\s+/).map(x=>x.trim()).filter(x=>x.length>1&&!STOP.has(x));}
 function unique(v){return [...new Set(v.filter(Boolean))];}
