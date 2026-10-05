@@ -58,5 +58,15 @@
     "topic":"Unresolved r/snowflake community reference UJtFzSpGMD",
     "signals":["community-reference","snowflake","reference-only","unresolved-shortlink"],
     "notes":"User-supplied Reddit share URL. Reddit returned HTTP 403 to both public and deployed resolution attempts, so no title, post claim, comment sentiment, or technical conclusion is inferred yet."
+  },
+  {
+    "id":"yash-fde-agentic-ai-interview-map",
+    "creator":"Yash V.",
+    "platform":"linkedin",
+    "originalUrl":"https://lnkd.in/p/g_xFabrr",
+    "url":"https://www.linkedin.com/posts/yashvermma_forwarddeployedengineer-agenticai-aiengineering-share-7512917194511577088-kFgH/",
+    "topic":"Forward Deployed Engineer and Applied Agentic AI interview question map",
+    "signals":["forward-deployed-engineer","applied-AI","agentic-AI","AI-engineering","LLMOps","system-design","inference","RAG","agents","evaluation","AI-governance","MCP","production-judgment","career-reference","question-led-structure"],
+    "notes":"Resolved from the user-supplied shortlink. Public metadata presents a large interview-question map spanning inference, KV cache and autoscaling, RAG design, agent orchestration and failure recovery, MCP integration, evaluation, governance, and production judgment. Use as style/career-topic intelligence and a taxonomy of discussion areas, not as evidence that the named companies asked these exact questions; any company-specific interview claim requires independent verification."
   }
 ]
