@@ -13,6 +13,8 @@ module.exports=async function(req,res){
   const diverse=diversified(vendorA.concat(vendorB),6);
   const context=buildContextPacket({topic:'Snowflake Cortex Agents production governance',platform:'linkedin',topK:12});
   const dash=context.selected.find(x=>x.id==='dash-cortex-agent-ga');
+  const fdeContext=buildContextPacket({topic:'Forward Deployed Engineer agentic AI RAG MCP evaluation governance production system design',platform:'linkedin',topK:16});
+  const yash=fdeContext.selected.find(x=>x.id==='yash-fde-agentic-ai-interview-map');
   const checks={
     feedHasPrimarySources:today.length>=4&&today.every(x=>/^https:\/\//.test(x.sourceUrl||'')&&/^2026-/.test(x.publishedAt||'')),
     feedHasTeachingAngles:today.every(x=>Array.isArray(x.angleSuggestions)&&x.angleSuggestions.length>=2),
@@ -24,11 +26,13 @@ module.exports=async function(req,res){
     technicalRankingBeatsMarketing:technical.potential>marketing.potential,
     vendorDiversityEnforced:diverse.filter(x=>x.vendor==='B').length>=2,
     approvalContentBound:verify(receipt,{draft:approved,platform:'linkedin'},approvalSecret).passed&&!verify(receipt,{draft:'changed copy',platform:'linkedin'},approvalSecret).passed,
-    submittedReferenceInboxLoaded:referenceInbox.length===6,
+    submittedReferenceInboxLoaded:referenceInbox.length===7,
     submittedReferenceRetrievable:Boolean(dash),
     submittedReferencesStayStyleOnly:dash?.trust==='style-only',
-    unresolvedRedditNotPromotedToEvidence:referenceInbox.filter(x=>x.platform==='reddit').every(x=>x.signals.includes('unresolved-shortlink'))
+    unresolvedRedditNotPromotedToEvidence:referenceInbox.filter(x=>x.platform==='reddit').every(x=>x.signals.includes('unresolved-shortlink')),
+    fdeReferenceRetrievable:Boolean(yash),
+    fdeReferenceStaysStyleOnly:yash?.trust==='style-only'
   };
   res.setHeader('Cache-Control','no-store');
-  return res.status(200).json({ok:Object.values(checks).every(Boolean),schema:'creator-product-selftest/v3',checks,seedFeedCount:today.length,researchPrinciples:research.principles.length,submittedReferences:referenceInbox.length});
+  return res.status(200).json({ok:Object.values(checks).every(Boolean),schema:'creator-product-selftest/v4',checks,seedFeedCount:today.length,researchPrinciples:research.principles.length,submittedReferences:referenceInbox.length});
 };
