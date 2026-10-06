@@ -14,6 +14,7 @@ This file records source material before any product decision is made.
 | SRC-008 | r/snowflake share `m5CChBnsxT` | community-feedback | unresolved | pending community pain point / practitioner signal | no title, claims or sentiment may be inferred until resolved |
 | SRC-009 | r/snowflake share `UJtFzSpGMD` | community-feedback | unresolved | pending community pain point / practitioner signal | no title, claims or sentiment may be inferred until resolved |
 | SRC-010 | User-provided dbt Charts launch visual (`IMG_8433.png`) | observed-ui | resolved image + official-doc corroboration | one-screen technical visual structure: strong claim → before-state architecture → code/config change → rendered outcome → concise benefits; visual hierarchy for explaining product changes | that the screenshot alone proves product behavior, public-beta status, performance, governance or usability |
+| SRC-011 | Darshal Jaitwar — Stanford LLM lecture / compensation hook | first-party-public + linked official source | resolved | high-attention career hook wrapped around a real deep technical source; useful example of source distillation and claim separation | the quoted Anthropic compensation figure; that Stanford teaches Anthropic's exact internal pipeline; any company-specific hiring claim without independent evidence |
 
 ## SRC-007 resolved content
 
@@ -60,9 +61,40 @@ Clean-room rule:
 
 The visual grammar may inform Creator Console's artifact planning, but the final product must not copy dbt's artwork, exact wording, brand styling, icons, or composition. We should reconstruct the explanatory behavior with an original visual system.
 
+## SRC-011 resolved content
+
+Original: `https://lnkd.in/p/gcc66ZWU`
+
+Resolved LinkedIn post: **Darshal Jaitwar — “Anthropic pays $750,000+ a year for engineers who can build LLMs from scratch...”**
+
+Observable post structure:
+
+1. Opens with a compensation claim as the attention hook.
+2. Converts the linked educational resource into a compact four-part promise: data, architecture, scaling laws, post-training.
+3. Uses “exact pipeline they use” language to connect the Stanford lecture to Anthropic, but the LinkedIn post itself does not establish that equivalence.
+4. Points readers to a Stanford lecture/source rather than providing technical evidence directly in the post.
+5. Public metadata exposed 48 comments, which is an engagement signal only; comment sentiment/content has not been reconstructed.
+
+Independent first-party source checks:
+
+- Stanford CS336 is **Language Modeling from Scratch**.
+- Stanford's course description says it walks students through the full process of developing language models, including data collection/cleansing for pre-training, transformer construction, training, evaluation and deployment-related understanding.
+- The course materials include implementation-heavy work across model basics, systems, scaling, data and alignment/post-training.
+
+Evidence boundary:
+
+- Stanford CS336 can support claims about the course curriculum.
+- Darshal's post can support claims about what Darshal wrote and how the hook is structured.
+- Neither source, as captured here, proves the `$750,000+` Anthropic compensation statement or that the course is Anthropic's exact internal training pipeline.
+
+Product implication under test:
+
+Creator Console needs **claim-level authority scope**. A compelling secondary-source hook must not inherit the factual authority of the official source it links to, and the official source must not be stretched to support unrelated career/company claims.
+
 ## Open source-research gaps
 
-- LinkedIn comment/reaction evidence for SRC-001 through SRC-007 is not yet comprehensively captured.
+- LinkedIn comment/reaction evidence for SRC-001 through SRC-007 and SRC-011 is not yet comprehensively captured.
 - The two Reddit shortlinks remain unresolved.
 - Competitor product workflows still need direct reconstruction rather than feature-list comparison.
 - SRC-010 gives strong visual-communication evidence but no audience-response data yet; do not treat it as proof that this layout improves engagement without further evidence.
+- SRC-011's compensation and company-specific claims remain deliberately unverified until matched to an appropriate authoritative source.
