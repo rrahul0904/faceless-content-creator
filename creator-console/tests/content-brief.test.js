@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {sourceRecord,claim,createBrief,transition,attachSource,attachClaim,evidenceGate,canDraft,deterministicSerialize,receiptHash}=require('../lib/content-brief');
+const {sourceRecord,claim,createBrief,transition,attachSource,attachClaim,evidenceGate,buildBriefBundle,canDraft,deterministicSerialize,receiptHash}=require('../lib/content-brief');
 
 function briefWithClaim({source,claimInput,mode='factual-explainer'}){
   let b=createBrief({topic:'Test topic',mode,createdAt:'2026-10-06T00:00:00.000Z'});
@@ -70,4 +70,30 @@ test('serialization and receipt hashing are deterministic',()=>{
   const b={items:[{a:1,b:2}],a:{x:1,y:3},z:2};
   assert.equal(deterministicSerialize(a),deterministicSerialize(b));
   assert.equal(receiptHash(a),receiptHash(b));
+});
+
+test('bundle evaluation reaches evidence-ready only with claim-level support',()=>{
+  const input={
+    brief:{topic:'Cortex Agents GA',createdAt:'2026-10-06T00:00:00.000Z',teachingOutcome:'Explain the production implications.'},
+    sources:[{id:'official-1',url:'https://docs.example.com/release',evidenceClass:'official-doc',resolutionStatus:'resolved',capturedAt:'2026-10-06T00:00:00.000Z'}],
+    claims:[{text:'The feature is generally available.',claimType:'fact',supportingSourceIds:['official-1']}],
+    evaluatedAt:'2026-10-06T00:05:00.000Z'
+  };
+  const bundle=buildBriefBundle(input);
+  assert.equal(bundle.gate.passed,true);
+  assert.equal(bundle.brief.status,'evidence-ready');
+  assert.match(bundle.receiptHash,/^[a-f0-9]{64}$/);
+  assert.equal(buildBriefBundle(input).receiptHash,bundle.receiptHash);
+});
+
+test('bundle evaluation blocks a factual claim supported only by a reference pattern',()=>{
+  const bundle=buildBriefBundle({
+    brief:{topic:'Benchmark claim',createdAt:'2026-10-06T00:00:00.000Z'},
+    sources:[{id:'ref-1',url:'https://linkedin.com/posts/example',evidenceClass:'reference-pattern',resolutionStatus:'resolved',capturedAt:'2026-10-06T00:00:00.000Z'}],
+    claims:[{text:'Latency improved by 40%.',claimType:'fact',supportingSourceIds:['ref-1']}],
+    evaluatedAt:'2026-10-06T00:05:00.000Z'
+  });
+  assert.equal(bundle.gate.passed,false);
+  assert.equal(bundle.brief.status,'blocked-evidence');
+  assert.equal(bundle.claims[0].status,'unsupported');
 });
