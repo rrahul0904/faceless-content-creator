@@ -20,6 +20,10 @@ Rules:
 | EV-010 | SRC-002 Dash DesAI | first-party-public + official release notes | Product-announcement content becomes more useful when converted into feature mechanics and production implications and linked back to primary documentation. | high | Current primary-source enrichment is directionally justified, but must be evaluated as part of a complete workflow. | KEEP/IMPROVE |
 | EV-011 | Existing Creator Console prototype | observed-ui / internal-donor | Current UI centers Today → Research → Create → Library → Capabilities → Memory → Agent runs. | high | This navigation is donor behavior only; it is not accepted as the final information architecture until workflow reconstruction is complete. | INVESTIGATE |
 | EV-012 | Existing prototype harness | internal-donor | The code has explicit evidence, context, writing, critic/revision, approval and publishing boundaries. | high | These are reusable engineering primitives if the reconstructed product still requires them. | INVESTIGATE |
+| EV-013 | SRC-010 dbt Charts launch visual | observed-ui | The visual explains a technical product change through a before-state architecture, a changed implementation artifact (YAML), and the rendered outcome in a single frame. | high | Creator Console should investigate a proof-bearing visual artifact type where the diagram shows what changed and includes the configuration/code that causes the change. | INVESTIGATE |
+| EV-014 | dbt Developer Hub / dbt Charts docs | official-doc | dbt Charts uses YAML to define queries/charts/layout and can render interactive dashboards from the same project context. | high | When a technical claim is inherently configuration-driven, a generated visual should expose the configuration rather than hide it behind generic illustration. | IMPROVE |
+| EV-015 | SRC-010 dbt Charts launch visual | observed-ui | The layout compresses the message into headline → before/after → artifact → three benefits, with very little surrounding prose. | high | Creator Console needs a “visual explainer brief” distinct from prose drafting: claim, contrast, artifact, outcome, and 2–4 evidence-backed takeaways. | NEW/INVESTIGATE |
+| EV-016 | SRC-010 + official dbt sources | observed-ui + official-doc | The screenshot's public-beta and YAML/dashboard concepts are independently corroborated by dbt first-party sources, while the screenshot alone does not establish product efficacy. | high | Visual generation must bind every product/factual label to evidence IDs and keep visual observation separate from claims about effectiveness or engagement. | KEEP/IMPROVE |
 
 ## Inferences under test
 
@@ -30,5 +34,6 @@ These are hypotheses, not accepted product requirements:
 3. **Question Map** — convert a domain into architecture/interview/production questions, then map each question to evidence and content.
 4. **Artifact-backed content** — prefer diagrams, code, benchmarks, tests or implementation receipts when the topic supports them.
 5. **Evidence type awareness** — tutorial/reference code must be labeled differently from production guidance.
+6. **Visual explainer brief** — for architecture/product-change topics, generate an original visual plan containing a claim, before-state, after-state, code/config artifact, rendered outcome, and evidence-backed takeaways instead of a decorative image prompt.
 
 Each hypothesis remains `INVESTIGATE` until feedback and competitor evidence support it.
