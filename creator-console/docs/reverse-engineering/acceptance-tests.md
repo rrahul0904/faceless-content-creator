@@ -1,4 +1,4 @@
-# Behavior Contracts / Acceptance Tests v0.1
+# Behavior Contracts / Acceptance Tests v0.2
 
 These contracts come from the reverse-engineering evidence and product thesis. They are not implementation-specific UI tests.
 
@@ -57,6 +57,18 @@ Any generated code/diagram/benchmark/checklist that appears in approved content 
 ### AC-R02 — Unverified artifact cannot be presented as tested
 Generated code or benchmark output without execution/evaluation proof must be labeled illustrative/unverified.
 
+### AC-R03 — Technical visuals are explanatory artifacts, not decoration
+Given a topic whose key value is an architecture/configuration/product change, the visual planner must produce a structured explainer brief with at least: central claim, prior state/problem, changed mechanism or artifact, resulting state/outcome, and evidence-backed takeaways. A generic decorative-image prompt does not satisfy this contract.
+
+### AC-R04 — Visual factual labels are provenance-bound
+Given a visual containing a release state, product capability, benchmark number, architecture label or comparison claim, each factual label must bind to evidence IDs. Observed layout/style evidence alone cannot satisfy factual support.
+
+### AC-R05 — Code/config shown in a visual must be semantically relevant
+Given a visual that includes code, SQL, YAML, JSON or configuration, the snippet must be derived from or validated against the supporting source/implementation contract and must materially explain the mechanism. Placeholder code added only for aesthetics fails review.
+
+### AC-R06 — Clean-room visual reconstruction
+Given an external visual used as reverse-engineering evidence, the resulting Creator Console artifact may reuse the explanatory grammar (for example before/after, mechanism, result) but must not reproduce protected brand artwork, exact copy, icons, layout geometry or distinctive visual styling.
+
 ## Draft/review
 
 ### AC-D01 — Draft source set is explicit
@@ -97,3 +109,14 @@ The first reset implementation may be considered verified only when it can deter
 4. a broad multi-cluster topic can produce a dependency-safe `series` recommendation;
 5. a tutorial/reference source carries its semantic warning into the output plan;
 6. the result is a structured receipt suitable for later drafting — without requiring a language-model credential.
+
+## Vertical Slice 2 candidate exit criteria — proof-bearing visual explainer
+
+This slice must not start until the visual-planning hypothesis is accepted by the tracker. If accepted, it must demonstrate:
+
+1. architecture/product-change topics can request a `visual-explainer` artifact;
+2. the brief contains prior state, mechanism/config, resulting state and takeaways;
+3. every factual visual label maps to evidence IDs;
+4. code/config snippets are source-grounded or explicitly illustrative;
+5. external reference visuals influence explanatory structure only, not copied design;
+6. the resulting artifact receipt can be bound into draft review and approval.
