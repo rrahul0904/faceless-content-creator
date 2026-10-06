@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creator Console — Content Brief UAT</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+body{background:#0b0d12;color:#f6f7fb}.uat{max-width:1180px;margin:0 auto;padding:32px 22px 64px}.uat h1{font-size:34px;margin:0 0 8px}.uat p{color:#a9b0c0}.uatGrid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}.uat .panel{margin-bottom:16px}.uat label{display:block;font-size:12px;font-weight:700;color:#a9b0c0;margin:0 0 6px}.uat input,.uat textarea,.uat select{width:100%;box-sizing:border-box;background:#11151d;border:1px solid #2a3140;color:#f6f7fb;border-radius:8px;padding:10px}.uat textarea{min-height:92px}.uat .field{margin-bottom:12px}.uat pre{white-space:pre-wrap;word-break:break-word;background:#0f131a;border:1px solid #252d3b;padding:12px;border-radius:8px;max-height:440px;overflow:auto}.uat .statusRow{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.uat .sourceCard{border:1px solid #252d3b;border-radius:9px;padding:12px;margin-top:10px}.uat .actions{display:flex;gap:8px;flex-wrap:wrap}.uat .goodText{color:#56d89c}.uat .badText{color:#ff8a8a}@media(max-width:850px){.uatGrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="uat">
+  <div class="tiny">Creator Console · reverse-engineering reset · Slice A</div>
+  <h1>Content Brief UAT</h1>
+  <p>This page exercises the clean-room Content Brief contract. It does not generate a post. A brief must earn evidence readiness claim by claim.</p>
+  <div class="statusRow">
+    <span id="storageBadge" class="badge warn">checking storage</span>
+    <span id="sourceBadge" class="badge">loading sources</span>
+    <span id="gateBadge" class="badge">not evaluated</span>
+  </div>
+
+  <div class="uatGrid">
+    <section>
+      <div class="panel">
+        <div class="panelHd"><h3>1. Capture a real source</h3><span class="badge blue">source inbox</span></div>
+        <div class="panelBd">
+          <div class="field"><label>Official discovery</label><select id="sourceSelect"><option>Loading…</option></select></div>
+          <div id="sourceDetail" class="sourceCard">Waiting for discovery.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panelHd"><h3>2. Define the brief</h3><span class="badge blue">durable work object</span></div>
+        <div class="panelBd">
+          <div class="field"><label>Topic</label><input id="topic"></div>
+          <div class="field"><label>Why did this enter the system?</label><textarea id="trigger"></textarea></div>
+          <div class="field"><label>Teaching outcome</label><textarea id="teachingOutcome" placeholder="What should the reader understand after this?"></textarea></div>
+          <div class="field"><label>Your take</label><textarea id="creatorTake" placeholder="Optional during research. Keep opinion separate from factual claims."></textarea></div>
+          <div class="field"><label>Mode</label><select id="mode"><option value="factual-explainer">Factual explainer</option><option value="analysis">Analysis</option><option value="comparison">Comparison</option><option value="tutorial">Tutorial</option><option value="experience">Experience</option><option value="series">Series</option></select></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panelHd"><h3>3. Claim ledger</h3><span class="badge blue">claim-level evidence</span></div>
+        <div class="panelBd">
+          <div class="field"><label>Claim</label><textarea id="claimText" placeholder="Write one precise claim that the selected source must support."></textarea></div>
+          <div class="field"><label>Claim type</label><select id="claimType"><option value="fact">Fact</option><option value="inference">Inference</option><option value="creator-opinion">Creator opinion</option><option value="author-experience">Author experience</option></select></div>
+          <div class="actions"><button class="btn primary" id="evaluateBtn">Evaluate evidence gate</button><button class="btn" id="persistBtn" disabled>Persist bundle</button></div>
+          <div id="notice" class="notice warn" style="margin-top:12px">No evaluation yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel">
+        <div class="panelHd"><h3>Evidence result</h3><span class="badge" id="resultState">waiting</span></div>
+        <div class="panelBd">
+          <div id="humanResult" class="placeholder">Choose a source, write a claim, and evaluate.</div>
+          <pre id="resultJson">{}</pre>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panelHd"><h3>Roadmap gate</h3><span class="badge warn">Slice A</span></div>
+        <div class="panelBd">
+          <p><b>Pass conditions:</b> claim-level evidence gate works, impossible source classes fail closed, browser flow works, hosted API works, and durable storage is proven.</p>
+          <p id="roadmapState" class="badText"><b>Not fully certified:</b> checking current blockers.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<script src="/brief-uat.js" defer></script>
+</body>
+</html>
