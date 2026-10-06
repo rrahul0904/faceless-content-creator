@@ -37,6 +37,8 @@
     "typescript": "5.9.2"
   },
   "overrides": {
-    "deepmerge-ts": "8.0.1"
+    "deepmerge-ts": "8.0.1",
+    "sharp": "0.35.5",
+    "source-map-js": "1.2.2"
   }
 }
