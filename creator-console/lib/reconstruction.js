@@ -3,6 +3,12 @@ const crypto=require('crypto');
 
 const FACTUAL_SOURCE_CLASSES=new Set(['official-doc','official-source','first-party-public','observed-ui']);
 const NON_FACTUAL_SOURCE_CLASSES=new Set(['structural-reference','community-feedback','inference']);
+const DEFAULT_AUTHORITY_SCOPES={
+  'official-doc':['*'],
+  'official-source':['*'],
+  'first-party-public':['source-observation'],
+  'observed-ui':['visual-observation']
+};
 
 function id(prefix,value){return `${prefix}-${crypto.createHash('sha256').update(String(value||'')).digest('hex').slice(0,12)}`}
 function list(v){return Array.isArray(v)?v:[]}
@@ -11,6 +17,7 @@ function uniq(v){return [...new Set(list(v).filter(Boolean).map(String))]}
 
 function normalizeSource(input={}){
   const sourceClass=String(input.sourceClass||'inference');
+  const explicitScopes=uniq(input.authorityScopes);
   const source={
     id:String(input.id||id('src',input.url||input.title||JSON.stringify(input))),
     url:String(input.url||''),
@@ -21,16 +28,21 @@ function normalizeSource(input={}){
     content:clean(input.content||input.summary||'',12000),
     observations:list(input.observations).map(x=>clean(x,2400)).filter(Boolean),
     semanticLimitations:uniq(input.semanticLimitations),
+    authorityScopes:explicitScopes.length?explicitScopes:uniq(DEFAULT_AUTHORITY_SCOPES[sourceClass]),
     resolved:input.resolved!==false,
     metadataOnly:Boolean(input.metadataOnly)
   };
   return source;
 }
 
-function sourceCanSupportFact(source){
+function sourceCanSupportFact(source,claim={}){
   if(!source||!source.resolved||source.metadataOnly)return false;
   if(NON_FACTUAL_SOURCE_CLASSES.has(source.sourceClass))return false;
-  return FACTUAL_SOURCE_CLASSES.has(source.sourceClass);
+  if(!FACTUAL_SOURCE_CLASSES.has(source.sourceClass))return false;
+  const requiredScope=clean(claim.requiredScope,200);
+  if(!requiredScope)return true;
+  const scopes=uniq(source.authorityScopes);
+  return scopes.includes('*')||scopes.includes(requiredScope);
 }
 
 function understandingReceipt(sources){
@@ -39,7 +51,7 @@ function understandingReceipt(sources){
   const metadataOnly=normalized.filter(x=>x.metadataOnly);
   const readable=normalized.filter(x=>x.resolved&&!x.metadataOnly&&(x.content||x.observations.length));
   return{
-    schema:'creator-understanding-receipt/v1',
+    schema:'creator-understanding-receipt/v2',
     state:readable.length?'UNDERSTANDING':'CAPTURED',
     sources:normalized,
     readableSourceIds:readable.map(x=>x.id),
@@ -58,6 +70,7 @@ function normalizeClaim(input={},index=0){
     text:clean(input.text||input.claim,3000),
     factual:input.factual!==false,
     evidenceSourceIds:uniq(input.evidenceSourceIds||input.sourceIds),
+    requiredScope:clean(input.requiredScope,200),
     benchmark:Boolean(input.benchmark),
     benchmarkConditions:clean(input.benchmarkConditions,2000)
   };
@@ -67,11 +80,13 @@ function evaluateEvidence(claims,sources){
   const byId=new Map(sources.map(x=>[x.id,x]));
   const evaluated=list(claims).map(normalizeClaim).map(claim=>{
     const bound=claim.evidenceSourceIds.map(x=>byId.get(x)).filter(Boolean);
-    const factualSupport=bound.filter(sourceCanSupportFact);
+    const factualClassSources=bound.filter(source=>source&&source.resolved&&!source.metadataOnly&&FACTUAL_SOURCE_CLASSES.has(source.sourceClass));
+    const factualSupport=bound.filter(source=>sourceCanSupportFact(source,claim));
     const benchmarkConditionsPassed=!claim.benchmark||Boolean(claim.benchmarkConditions);
     const passed=!claim.factual||(factualSupport.length>0&&benchmarkConditionsPassed);
     const issues=[];
     if(claim.factual&&!factualSupport.length)issues.push('FACTUAL_CLAIM_WITHOUT_QUALIFYING_EVIDENCE');
+    if(claim.factual&&claim.requiredScope&&factualClassSources.length&&!factualSupport.length)issues.push('SOURCE_AUTHORITY_SCOPE_MISMATCH');
     if(claim.benchmark&&!claim.benchmarkConditions)issues.push('BENCHMARK_CONDITIONS_REQUIRED');
     return{...claim,passed,qualifyingEvidenceSourceIds:factualSupport.map(x=>x.id),issues};
   });
@@ -82,7 +97,7 @@ function evaluateEvidence(claims,sources){
     }
   }
   return{
-    schema:'creator-evidence-gate/v2',
+    schema:'creator-evidence-gate/v3',
     passed:evaluated.every(x=>x.passed),
     claims:evaluated,
     semanticWarnings
@@ -172,21 +187,21 @@ function runReconstruction(input={}){
   const states=['CAPTURED'];
   if(understanding.state==='UNDERSTANDING')states.push('UNDERSTANDING');
   if(!evidence.passed){
-    return{schema:'creator-reconstruction/v1',status:'BLOCKED_EVIDENCE_INSUFFICIENT',states,understanding,evidence,authorship:null,contentPlan:null};
+    return{schema:'creator-reconstruction/v2',status:'BLOCKED_EVIDENCE_INSUFFICIENT',states,understanding,evidence,authorship:null,contentPlan:null};
   }
   states.push('EVIDENCE_READY');
   const authorship=evaluateAuthorship({requiresJudgment:Boolean(input.requiresJudgment),authorAssertions:input.authorAssertions});
   if(!authorship.passed){
-    return{schema:'creator-reconstruction/v1',status:'BLOCKED_AUTHORSHIP_INSUFFICIENT',states,understanding,evidence,authorship,contentPlan:null};
+    return{schema:'creator-reconstruction/v2',status:'BLOCKED_AUTHORSHIP_INSUFFICIENT',states,understanding,evidence,authorship,contentPlan:null};
   }
   states.push('AUTHORSHIP_READY');
   const contentPlan=chooseContentPlan({topic:input.topic,clusters:input.clusters,questions:input.questions,projectSpine:input.projectSpine,requestedType:input.requestedType,semanticWarnings:evidence.semanticWarnings});
   if(!contentPlan.acyclic){
-    return{schema:'creator-reconstruction/v1',status:'BLOCKED_INVALID_CONTENT_PLAN',states,understanding,evidence,authorship,contentPlan};
+    return{schema:'creator-reconstruction/v2',status:'BLOCKED_INVALID_CONTENT_PLAN',states,understanding,evidence,authorship,contentPlan};
   }
   states.push('CONTENT_PLAN');
   return{
-    schema:'creator-reconstruction/v1',
+    schema:'creator-reconstruction/v2',
     status:'CONTENT_PLAN_READY',
     states,
     understanding,
@@ -203,6 +218,6 @@ function runReconstruction(input={}){
 }
 
 module.exports={
-  FACTUAL_SOURCE_CLASSES,NON_FACTUAL_SOURCE_CLASSES,
+  FACTUAL_SOURCE_CLASSES,NON_FACTUAL_SOURCE_CLASSES,DEFAULT_AUTHORITY_SCOPES,
   normalizeSource,sourceCanSupportFact,understandingReceipt,evaluateEvidence,evaluateAuthorship,topoLessons,chooseContentPlan,runReconstruction
 };
