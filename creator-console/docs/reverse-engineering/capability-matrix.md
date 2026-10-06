@@ -19,6 +19,9 @@ This is intentionally provisional. `Accepted` means there is enough evidence to 
 | Project spine / build-along artifact | SRC-007 + DataTalksClub project model | absent | INVESTIGATE | define suitable content categories and artifact receipts |
 | Question-map decomposition | SRC-006 | absent | INVESTIGATE | test against broad topics such as RAG, Snowflake, agentic AI |
 | Code / diagram / benchmark artifacts | Nick/Dash/Patrick + official technical sources | only visual brief scaffold | IMPROVE | reconstruct artifact generation and verification workflow |
+| Proof-bearing visual explainer | SRC-010 dbt Charts observed UI + official dbt docs | absent as a structured artifact type | INVESTIGATE | validate against additional technical visuals; prove claim→visual-label provenance and clean-room rendering |
+| Before/after architecture contrast | SRC-010 | absent | INVESTIGATE | identify topics where contrast genuinely explains a state change versus forcing a template |
+| Config/code-to-rendered-outcome visual | SRC-010 + official dbt Charts docs | absent | INVESTIGATE | build a source-grounded visual brief and verify code/config semantics before rendering |
 | Reference-vs-production labeling | MCP official-source warning | partial evidence-type labels | KEEP/IMPROVE | explicit UI and prompt contract |
 
 ## Current product boundary is not approved
