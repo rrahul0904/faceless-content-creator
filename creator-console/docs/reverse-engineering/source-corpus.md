@@ -13,6 +13,7 @@ This file records source material before any product decision is made.
 | SRC-007 | Gaurav Sinha — Data Engineering and GenAI Project-Based Learning Path | first-party-public | resolved | sequenced curriculum artifact; competency ordering; one end-to-end project as learning spine; resource curation | resource quality/effectiveness by itself; audience outcomes without feedback evidence |
 | SRC-008 | r/snowflake share `m5CChBnsxT` | community-feedback | unresolved | pending community pain point / practitioner signal | no title, claims or sentiment may be inferred until resolved |
 | SRC-009 | r/snowflake share `UJtFzSpGMD` | community-feedback | unresolved | pending community pain point / practitioner signal | no title, claims or sentiment may be inferred until resolved |
+| SRC-010 | User-provided dbt Charts launch visual (`IMG_8433.png`) | observed-ui | resolved image + official-doc corroboration | one-screen technical visual structure: strong claim → before-state architecture → code/config change → rendered outcome → concise benefits; visual hierarchy for explaining product changes | that the screenshot alone proves product behavior, public-beta status, performance, governance or usability |
 
 ## SRC-007 resolved content
 
@@ -36,8 +37,32 @@ Independent source checks performed:
 - OpenAI Cookbook is OpenAI's official examples/guides repository (`https://github.com/openai/openai-cookbook`).
 - MCP reference servers are maintained as educational/reference implementations and explicitly warn that they are not production-ready by default (`https://github.com/modelcontextprotocol/servers`).
 
+## SRC-010 observed visual structure
+
+User-provided image: `IMG_8433.png`.
+
+Directly observable elements:
+
+1. A single provocative technical headline: “Your next BI dashboard might just be a YAML file.”
+2. Explicit product-state label: “dbt Charts is now in public beta.”
+3. A **Before** panel showing a multi-tool chain: dbt transforms → warehouse → BI tool, with separate configs/manual setup/permissions called out as friction.
+4. A **Now with dbt Charts** panel showing a YAML file and the rendered dashboard together in the same visual frame.
+5. Three compressed benefit statements at the bottom: define dashboards in YAML, version control/review/test/deploy with the dbt project, and data-team-oriented integration.
+6. The composition teaches through contrast and an executable-looking artifact rather than a decorative illustration.
+
+Independent first-party corroboration:
+
+- dbt Developer Hub states that dbt Charts turns YAML files into interactive dashboards and stores queries/charts/layout alongside the dbt project.
+- dbt release notes identify dbt Charts as public beta.
+- dbt's product page describes the language as declarative YAML, version-controlled beside dbt models, with local/CI/platform workflows.
+
+Clean-room rule:
+
+The visual grammar may inform Creator Console's artifact planning, but the final product must not copy dbt's artwork, exact wording, brand styling, icons, or composition. We should reconstruct the explanatory behavior with an original visual system.
+
 ## Open source-research gaps
 
 - LinkedIn comment/reaction evidence for SRC-001 through SRC-007 is not yet comprehensively captured.
 - The two Reddit shortlinks remain unresolved.
 - Competitor product workflows still need direct reconstruction rather than feature-list comparison.
+- SRC-010 gives strong visual-communication evidence but no audience-response data yet; do not treat it as proof that this layout improves engagement without further evidence.
