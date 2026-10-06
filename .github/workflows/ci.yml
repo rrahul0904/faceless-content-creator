@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify Creator Console contracts
+        run: cd creator-console && npm test
       - name: Install local media engine
         run: |
           sudo apt-get update
