@@ -1,0 +1,39 @@
+name: Refresh root lockfile
+
+on:
+  push:
+    branches:
+      - creator-console/reverse-engineering-reset-v1
+    paths:
+      - package.json
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: creator-console/reverse-engineering-reset-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regenerate package lock from package.json
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Verify patched transitive versions
+        run: |
+          node -e "const l=require('./package-lock.json'); const p=l.packages||{}; const sharp=p['node_modules/sharp']?.version; const sm=p['node_modules/source-map-js']?.version; if(sharp!=='0.35.5'||sm!=='1.2.2'){console.error({sharp,sourceMapJs:sm});process.exit(1)} console.log({sharp,sourceMapJs:sm})"
+      - name: Commit generated lockfile
+        shell: bash
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already matches package.json"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: refresh lockfile for transitive security pins"
+          git push origin HEAD:creator-console/reverse-engineering-reset-v1
