@@ -9,6 +9,7 @@ const official={
   title:'MCP reference servers',
   sourceClass:'official-source',
   publisher:'Model Context Protocol',
+  authorityScopes:['mcp-reference-semantics'],
   content:'Reference implementations intended to demonstrate MCP features and SDK usage.',
   observations:['Maintained servers are reference implementations.'],
   semanticLimitations:['reference-implementation-not-production-ready']
@@ -19,6 +20,7 @@ const gaurav={
   title:'Data Engineering and GenAI Project-Based Learning Path',
   sourceClass:'first-party-public',
   publisher:'Gaurav Sinha',
+  authorityScopes:['source-observation'],
   content:'Follow a sequence and build one end-to-end project alongside it: SQL, Python, data engineering fundamentals, Spark/Airflow/dbt/Kafka, GenAI, RAG and MCP.',
   observations:['Recommends a sequenced curriculum and one cumulative portfolio project.']
 };
@@ -26,7 +28,7 @@ const gaurav={
 function baseInput(){return{
   topic:'Data Engineering + GenAI project-based learning path',
   sources:[gaurav,official],
-  claims:[{id:'c1',text:'The source recommends a sequenced learning path anchored by one end-to-end project.',evidenceSourceIds:['gaurav-learning-path']}],
+  claims:[{id:'c1',text:'The source recommends a sequenced learning path anchored by one end-to-end project.',requiredScope:'source-observation',evidenceSourceIds:['gaurav-learning-path']}],
   authorAssertions:[{id:'a1',text:'I want the series to emphasize production trade-offs instead of course completion.',kind:'judgment',owner:'creator'}],
   requiresJudgment:true,
   clusters:[
@@ -54,11 +56,53 @@ test('style-only reference cannot satisfy factual evidence',()=>{
 test('benchmark requires conditions even with factual source',()=>{
   const r=runReconstruction({
     topic:'Latency benchmark',
-    sources:[{id:'official',sourceClass:'official-source',resolved:true,content:'Official benchmark result.'}],
-    claims:[{id:'bench',text:'Latency is 1 ms.',benchmark:true,evidenceSourceIds:['official']}]
+    sources:[{id:'official',sourceClass:'official-source',resolved:true,authorityScopes:['benchmark'],content:'Official benchmark result.'}],
+    claims:[{id:'bench',text:'Latency is 1 ms.',requiredScope:'benchmark',benchmark:true,evidenceSourceIds:['official']}]
   });
   assert.equal(r.status,'BLOCKED_EVIDENCE_INSUFFICIENT');
   assert.ok(r.evidence.claims[0].issues.includes('BENCHMARK_CONDITIONS_REQUIRED'));
+});
+
+test('creator post cannot prove a third-party compensation claim outside its authority scope',()=>{
+  const r=runReconstruction({
+    topic:'Stanford LLM course',
+    sources:[{
+      id:'darshal',
+      sourceClass:'first-party-public',
+      resolved:true,
+      authorityScopes:['source-observation'],
+      content:'Anthropic pays $750,000+ and this Stanford lecture is the exact pipeline they use.'
+    }],
+    claims:[{
+      id:'salary',
+      text:'Anthropic pays $750,000+ for engineers who can build LLMs from scratch.',
+      requiredScope:'third-party-compensation',
+      evidenceSourceIds:['darshal']
+    }]
+  });
+  assert.equal(r.status,'BLOCKED_EVIDENCE_INSUFFICIENT');
+  assert.ok(r.evidence.claims[0].issues.includes('SOURCE_AUTHORITY_SCOPE_MISMATCH'));
+});
+
+test('official Stanford course source can support curriculum claims within declared scope',()=>{
+  const r=runReconstruction({
+    topic:'Stanford CS336',
+    sources:[{
+      id:'stanford',
+      sourceClass:'official-doc',
+      resolved:true,
+      authorityScopes:['course-curriculum'],
+      content:'CS336 covers language modeling from scratch across data, model construction, training, scaling, evaluation and post-training.'
+    }],
+    claims:[{
+      id:'curriculum',
+      text:'CS336 covers the end-to-end process of developing language models from scratch.',
+      requiredScope:'course-curriculum',
+      evidenceSourceIds:['stanford']
+    }]
+  });
+  assert.equal(r.status,'CONTENT_PLAN_READY');
+  assert.deepEqual(r.evidence.claims[0].qualifyingEvidenceSourceIds,['stanford']);
 });
 
 test('missing creator judgment fails closed for opinionated plan',()=>{
