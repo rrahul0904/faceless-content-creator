@@ -118,8 +118,22 @@ function evidenceGate({brief,sources=[],claims=[]}){
   const passed=hasClaims&&unsupported.length===0&&experienceOk;
   return {schema:'creator-brief-evidence-gate/v1',passed,briefId:brief.id,claimCount:evaluated.length,requiredClaimCount:required.length,unsupportedClaimIds:unsupported.map(c=>c.id).sort(),experienceRequired,experienceOk,evaluatedClaims:evaluated};
 }
+function buildBriefBundle(input={}){
+  const briefInput=input.brief&&typeof input.brief==='object'?input.brief:input;
+  let brief=createBrief(briefInput);
+  const sources=(Array.isArray(input.sources)?input.sources:[]).map(sourceRecord);
+  for(const s of sources)brief=attachSource(brief,s);
+  const claims=(Array.isArray(input.claims)?input.claims:[]).map(c=>claim({...c,briefId:brief.id}));
+  for(const c of claims)brief=attachClaim(brief,c);
+  const researching=transition(brief,'researching',input.evaluatedAt||brief.updatedAt);
+  const gate=evidenceGate({brief:researching,sources,claims});
+  const evaluatedBrief=transition(researching,gate.passed?'evidence-ready':'blocked-evidence',input.evaluatedAt||researching.updatedAt);
+  const evaluatedClaims=gate.evaluatedClaims;
+  const receipt=receiptHash({brief:evaluatedBrief,sources,claims:evaluatedClaims,gate:{...gate,evaluatedClaims:undefined}});
+  return {schema:'creator-content-brief-bundle/v1',brief:evaluatedBrief,sources,claims:evaluatedClaims,gate,receiptHash:receipt};
+}
 function canDraft(input){return evidenceGate(input).passed;}
-function stable(value){if(Array.isArray(value))return value.map(stable);if(value&&typeof value==='object'){return Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])]))}return value;}
+function stable(value){if(Array.isArray(value))return value.map(stable);if(value&&typeof value==='object'){return Object.fromEntries(Object.keys(value).sort().filter(k=>value[k]!==undefined).map(k=>[k,stable(value[k])]))}return value;}
 function deterministicSerialize(value){return JSON.stringify(stable(value));}
 function receiptHash(value){return crypto.createHash('sha256').update(deterministicSerialize(value)).digest('hex');}
-module.exports={EVIDENCE_CLASSES,EVIDENCE_CAPABLE,CLAIM_TYPES,BRIEF_STATES,sourceRecord,claim,createBrief,transition,attachSource,attachClaim,evaluateClaim,evidenceGate,canDraft,deterministicSerialize,receiptHash};
+module.exports={EVIDENCE_CLASSES,EVIDENCE_CAPABLE,CLAIM_TYPES,BRIEF_STATES,sourceRecord,claim,createBrief,transition,attachSource,attachClaim,evaluateClaim,evidenceGate,buildBriefBundle,canDraft,deterministicSerialize,receiptHash};
