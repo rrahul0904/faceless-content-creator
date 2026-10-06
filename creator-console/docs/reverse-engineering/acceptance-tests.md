@@ -1,4 +1,4 @@
-# Behavior Contracts / Acceptance Tests v0.2
+# Behavior Contracts / Acceptance Tests v0.3
 
 These contracts come from the reverse-engineering evidence and product thesis. They are not implementation-specific UI tests.
 
@@ -16,6 +16,12 @@ Given a numeric benchmark claim, then the evidence record must contain the sourc
 ### AC-E04 — Unresolved source remains unresolved
 Given a shortlink/page that cannot be resolved or read, then no title, sentiment, workflow or technical conclusion may be inferred from it.
 
+### AC-E05 — Factual claim must match source authority scope
+Given a factual clause and a bound source, the source must explicitly qualify for the claim's required authority scope. A creator/practitioner post may prove what that author said, but it does not automatically prove third-party compensation, company-internal process, benchmark, or product claims. A source-class match without authority-scope match fails the evidence gate.
+
+### AC-E06 — Viral hook is decomposed before reuse
+Given a hook containing multiple factual clauses (for example compensation + employer + “exact pipeline”), each clause must be evaluated independently. Unsupported clauses must be removed, weakened, attributed, or rebound to qualifying evidence before the hook can enter a draft.
+
 ## Understanding
 
 ### AC-U01 — Capture is not understanding
@@ -23,6 +29,9 @@ Given only URL metadata/headline text, the record may enter `CAPTURED` but canno
 
 ### AC-U02 — Underlying source must be followed when present
 Given a creator/practitioner post that cites first-party docs/release notes/repo, the understanding stage must prefer/follow the first-party source for factual claims.
+
+### AC-U03 — Linked official source does not retroactively validate the wrapper post
+Given a secondary/creator post linking an official source, claims in the wrapper post remain separately evaluated. The official source can support only claims within its own authority scope; it cannot be used as blanket validation for unrelated wrapper claims.
 
 ## Authorship
 
@@ -48,6 +57,9 @@ Given a `project-backed-series`, lessons that modify the project must declare a 
 
 ### AC-P04 — Content type drives required proof
 Given an architecture teardown, benchmark explanation or implementation walkthrough, the planner must request an appropriate artifact/evidence type instead of treating text-only output as automatically sufficient.
+
+### AC-P05 — Deep source may expand into a series instead of a compressed hook
+Given a source whose underlying material spans multiple major competency clusters, the planner must evaluate whether a series/question-map/project-backed path is more faithful than compressing the source into one short post.
 
 ## Artifacts
 
@@ -108,7 +120,9 @@ The first reset implementation may be considered verified only when it can deter
 3. missing creator judgment produces `BLOCKED_AUTHORSHIP_INSUFFICIENT` for an opinionated plan;
 4. a broad multi-cluster topic can produce a dependency-safe `series` recommendation;
 5. a tutorial/reference source carries its semantic warning into the output plan;
-6. the result is a structured receipt suitable for later drafting — without requiring a language-model credential.
+6. a first-party-public creator post cannot support a factual claim outside its declared authority scope;
+7. an official source can support a claim within its declared authority scope;
+8. the result is a structured receipt suitable for later drafting — without requiring a language-model credential.
 
 ## Vertical Slice 2 candidate exit criteria — proof-bearing visual explainer
 
