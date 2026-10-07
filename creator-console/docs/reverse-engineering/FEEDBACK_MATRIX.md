@@ -21,6 +21,7 @@ Status: evidence artifact for reverse-engineering reset. This is not a feature w
 | AuthoredUp — Analytics (`https://help.authoredup.com/articles/how-to-use-analytics`) | official-doc | Period comparisons, impressions, reactions, comments, shares, engagement rate | Analytics interpretation still requires judgment | Preserve raw publication metrics separately from learned hypotheses. |
 | AuthoredUp — analytics discrepancy (`https://help.authoredup.com/articles/different-data-between-linkedin-and-authoredup`) | official-doc | Documents collection/update behavior and explains discrepancies from LinkedIn | Third-party metrics can lag or use different aggregation windows | Analytics provenance must include collection time/source and never imply perfect parity. |
 | AuthoredUp — data import (`https://help.authoredup.com/articles/how-import-your-linkedin-data-export`) | official-doc | Imports LinkedIn archive/public posts without requiring extension for basic history | Export has limited metrics; richer stats require collection path | Content history/import is useful for creator memory, but provenance and metric completeness must be visible. |
+| ThreadifyAI launch (`https://www.reddit.com/r/micro_saas/comments/1wzdvjd/i_built_a_free_tool_that_formats_any_youtube_link/`, product: `https://threadifyai.com/`) | first-party-public (maker launch post) | Maker describes URL-first repurposing: paste a YouTube URL, extract hooks with Claude, format output for LinkedIn/Twitter, positioned around fast carousel/social creation | Direct site UI was not retrievable in this pass; generation quality, editing controls, export format and exact platform support remain INVESTIGATE | Add source-media repurposing as a competitive behavior to reconstruct. Our implementation should preserve source-segment provenance instead of optimizing only for speed. |
 
 ## Community feedback / pain signals
 
@@ -36,6 +37,7 @@ Status: evidence artifact for reverse-engineering reset. This is not a feature w
 | r/linkedin — Taplio discussion (`https://www.reddit.com/r/linkedin/comments/16zcpmy/any_one_not_using_taplio/`) | community | Users value inspiration/scheduling but some express account/compliance concerns around automation | Low/Medium — mixed anecdotal thread | Prefer official platform APIs and explicit approval; do not depend on session-cookie/browser automation for publishing. |
 | r/SaaS — Kleo extension shutdown (`https://www.reddit.com/r/SaaS/comments/1lj4dfi/`) | community | Users valued viral-post/content ideation; shutdown discussion raises platform-dependency risk | Medium for workflow value, low for exact cause | Inspiration/search is useful, but product architecture must not depend on scraping LinkedIn as a critical path. |
 | r/digital_marketing — workflow after Kleo (`https://www.reddit.com/r/digital_marketing/comments/1pgf1lr/kleo_shutting_down_totally_messed_up_my_linkedin/`) | community | One user describes falling back to Notion + ChatGPT + spreadsheets + LinkedIn and losing consistency | Low/Medium | The OS value proposition is workflow continuity across research, brief, draft, approval and history. |
+| ThreadifyAI launch comments (`https://www.reddit.com/r/micro_saas/comments/1wzdvjd/i_built_a_free_tool_that_formats_any_youtube_link/`) | community | Feedback asks to see source passage → extracted hook → finished carousel side-by-side and asks whether a generated hook can be traced to its source timestamp | High for workflow/provenance requirement | Research Workbench should preserve timestamp/segment provenance for media-derived claims and hooks; Artifact Planner should let users inspect meaning preservation before approving a transformed artifact. |
 
 ## Reconstructed jobs that are underserved
 
@@ -63,14 +65,26 @@ This is not strongly solved by the observed LinkedIn creator tools. Creator Cons
 ### Job 3 — Preserve context while moving from research to writing
 Community reports repeatedly value fewer context switches. The Content Brief therefore owns the shared context. Research, planning, drafting and review operate on the same object rather than passing plain text between isolated agents.
 
-### Job 4 — Publish without unsafe automation
+### Job 4 — Repurpose long-form source material without losing meaning
+ThreadifyAI's launch demonstrates demand for rapid source-to-social transformation, while its feedback exposes the trust gap. Creator Console should support:
+
+1. source URL/media capture;
+2. transcript/source segment identification;
+3. hook/claim extraction;
+4. explicit provenance pointer to timestamp/source passage;
+5. platform-specific transformation;
+6. side-by-side verification before approval.
+
+Speed is useful; traceability is the differentiator.
+
+### Job 5 — Publish without unsafe automation
 Scheduling itself is not novel. The important boundary is:
 
 `approved immutable draft → official platform adapter/export → publication receipt`
 
 No cookie/session scraping, no silent publish, no approval inferred from generation.
 
-### Job 5 — Learn without inventing causality
+### Job 6 — Learn without inventing causality
 Existing products surface winning posts and recommendations. Creator Console should distinguish:
 
 - observed metric;
@@ -84,16 +98,17 @@ Existing products surface winning posts and recommendations. Creator Console sho
 
 ## Differentiation decision
 
-Creator Console will **not** try to win by being another LinkedIn AI generator, viral-post search database, generic scheduler, or engagement dashboard.
+Creator Console will **not** try to win by being another LinkedIn AI generator, viral-post search database, generic scheduler, engagement dashboard, or opaque URL-to-post transformer.
 
 The clean-room differentiation is:
 
-> Primary-source technical research + claim-level provenance + creator judgment + artifact planning + integrated editing + approval-bound publishing + evidence-aware learning.
+> Primary-source technical research + claim-level provenance + creator judgment + source-traceable repurposing + artifact planning + integrated editing + approval-bound publishing + evidence-aware learning.
 
 ## Explicit non-decisions / investigate
 
 The following remain unresolved and must not be implemented based on assumption:
 
+- ThreadifyAI direct UI/behavior, exact output formats, editing controls and export workflow until the product itself can be observed;
 - whether visual/carousel generation should be native rendering or export to an external design surface;
 - whether Medium should remain export-only or use a browser-assisted workflow;
 - which LinkedIn analytics can be retrieved reliably through official APIs for this account/use case;
