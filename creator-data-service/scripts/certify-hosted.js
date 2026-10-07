@@ -6,6 +6,7 @@ const base = String(process.env.CREATOR_DATA_URL || process.env.CREATOR_DATA_API
 const token = String(process.env.CREATOR_DATA_TOKEN || process.env.CREATOR_DATA_API_TOKEN || '');
 const phase = String(process.argv[2] || 'prepare').toLowerCase();
 const requestedId = String(process.env.CERT_BRIEF_ID || process.argv[3] || '');
+const previousRuntimeInstanceId = String(process.env.CERT_PREVIOUS_INSTANCE_ID || '');
 
 function fail(message, code='CERTIFICATION_FAILED', details=null) {
   const error = new Error(message); error.code=code; error.details=details; throw error;
@@ -32,6 +33,8 @@ async function prepare(){
   const id=requestedId||idNow();
   const health=await request('/health');
   assert(health.ok&&health.payload?.ok===true,'Hosted data service health check failed',health);
+  const runtimeInstanceId=String(health.payload?.runtimeInstanceId||'');
+  assert(runtimeInstanceId,'Hosted data service health is missing runtimeInstanceId');
   const bundle={
     brief:{id,topic:'Hosted durability certification',status:'evidence-ready',mode:'analysis',trigger:'Slice A hosted certification',audience:'operator',teachingOutcome:'Prove persistent recovery',creatorTake:'Durability must be demonstrated through restart, not inferred from configuration.',platforms:['linkedin','medium']},
     sources:[{id:'cert-source',url:'https://example.com/creator-certification',canonicalUrl:'https://example.com/creator-certification',evidenceClass:'official-doc',title:'Certification evidence',publisher:'Creator Console',resolutionStatus:'resolved',sourceLocator:{kind:'transcript',startSeconds:42,endSeconds:55,passage:'persistent evidence passage'}}],
@@ -57,23 +60,27 @@ async function prepare(){
   assert(recovered.brief.topic==='Hosted durability certification','Failed update was not rolled back');
 
   return {
-    schema:'creator-hosted-certification/v1',phase:'prepare',ok:true,briefId:id,
-    rollbackVerified:true,sourceLocatorVerified:true,
+    schema:'creator-hosted-certification/v2',phase:'prepare',ok:true,briefId:id,
+    rollbackVerified:true,sourceLocatorVerified:true,runtimeInstanceId,
     saveReceipt:saved.payload?.receipt||null,
     recoveryFingerprint:createHash('sha256').update(JSON.stringify({id,sourceId:'cert-source',claimId:'cert-claim',startSeconds:42,passage:'persistent evidence passage'})).digest('hex'),
-    next:`Restart or replace the hosted service while preserving its /data volume, then run: CERT_BRIEF_ID=${id} npm run certify:hosted:recover`,
+    next:`Restart or replace the hosted service while preserving its /data volume, then run: CERT_BRIEF_ID=${id} CERT_PREVIOUS_INSTANCE_ID=${runtimeInstanceId} npm run certify:hosted:recover`,
     preparedAt:new Date().toISOString(),
   };
 }
 async function recover(){
   const id=requestedId;
   assert(id,'CERT_BRIEF_ID or brief id argument is required for recover phase');
+  assert(previousRuntimeInstanceId,'CERT_PREVIOUS_INSTANCE_ID from prepare phase is required for recover phase');
   const health=await request('/health');
   assert(health.ok&&health.payload?.ok===true,'Hosted data service health check failed after restart',health);
+  const runtimeInstanceId=String(health.payload?.runtimeInstanceId||'');
+  assert(runtimeInstanceId,'Hosted data service health is missing runtimeInstanceId after restart');
+  assert(runtimeInstanceId!==previousRuntimeInstanceId,'Service runtime instance did not change; restart/replacement is not proven',{runtimeInstanceId,previousRuntimeInstanceId});
   const loaded=await request(`/v1/briefs/${encodeURIComponent(id)}`);
   assert(loaded.ok,'Hosted bundle could not be reloaded after restart',loaded);
   verifyRecovered(loaded.payload,id);
-  return {schema:'creator-hosted-certification/v1',phase:'recover',ok:true,briefId:id,restartRecoveryVerified:true,sourceLocatorVerified:true,recoveredAt:new Date().toISOString(),receipt:loaded.payload?.receipt||null};
+  return {schema:'creator-hosted-certification/v2',phase:'recover',ok:true,briefId:id,previousRuntimeInstanceId,runtimeInstanceId,serviceReplacementVerified:true,restartRecoveryVerified:true,sourceLocatorVerified:true,recoveredAt:new Date().toISOString(),receipt:loaded.payload?.receipt||null};
 }
 
 (async()=>{
@@ -82,7 +89,7 @@ async function recover(){
     const result=phase==='recover'?await recover():phase==='prepare'?await prepare():fail(`Unknown certification phase: ${phase}`,'INVALID_CERTIFICATION_PHASE');
     process.stdout.write(`${JSON.stringify(result,null,2)}\n`);
   }catch(error){
-    process.stderr.write(`${JSON.stringify({schema:'creator-hosted-certification/v1',ok:false,phase,code:error.code||'CERTIFICATION_FAILED',error:String(error.message||error),details:error.details||null},null,2)}\n`);
+    process.stderr.write(`${JSON.stringify({schema:'creator-hosted-certification/v2',ok:false,phase,code:error.code||'CERTIFICATION_FAILED',error:String(error.message||error),details:error.details||null},null,2)}\n`);
     process.exitCode=1;
   }
 })();
