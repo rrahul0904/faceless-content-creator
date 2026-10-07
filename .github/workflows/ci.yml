@@ -18,6 +18,8 @@ jobs:
           node-version: 22
       - name: Verify Creator Console contracts
         run: cd creator-console && npm test
+      - name: Verify Creator Data Service persistence
+        run: cd creator-data-service && npm test
       - name: Install local media engine
         run: |
           sudo apt-get update
