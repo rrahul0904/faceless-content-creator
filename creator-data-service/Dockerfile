@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim
 WORKDIR /app
 COPY package.json ./
-COPY store.js server.js ./
+COPY store.js scoped-store.js server.js ./
 RUN mkdir -p /data && chown -R node:node /app /data
 USER node
 ENV NODE_ENV=production
