@@ -4,16 +4,16 @@ const referenceInbox=require('../data/reference-inbox.json');
 const focus=require('../data/research-focus.json');
 const store=require('../lib/store');
 module.exports=async function(req,res){
-  const modelConfigured=Boolean(process.env.OPENAI_API_KEY),storageConfigured=store.config().configured,approvalConfigured=Boolean(process.env.CREATOR_APPROVAL_SECRET),linkedinConfigured=Boolean(process.env.LINKEDIN_ACCESS_TOKEN&&process.env.LINKEDIN_AUTHOR_URN);
+  const modelConfigured=Boolean(process.env.OPENAI_API_KEY),storage=store.config(),storageConfigured=storage.configured,approvalConfigured=Boolean(process.env.CREATOR_APPROVAL_SECRET),linkedinConfigured=Boolean(process.env.LINKEDIN_ACCESS_TOKEN&&process.env.LINKEDIN_AUTHOR_URN);
   res.setHeader('Cache-Control','no-store');
   return res.status(200).json({
     ok:true,service:'creator-console',contextSchema:'creator-context-packet/v2',referenceCorpus:references.length+referenceInbox.length,referenceInbox:referenceInbox.length,
     research:{mode:'official-source-discovery',sources:['OpenAI','Anthropic','Snowflake','Databricks'],scheduledRefresh:'0 11 * * *',scheduledRefreshUtc:'11:00 UTC daily',liveOnDemand:true,primarySourceEnrichment:true,verifiedSeedFallback:true},
     researchTopics:focus.topics.map(x=>x.label),discoveryLane:focus.discoveryLane.label,formats:focus.formats,
     modelConfigured,model:modelConfigured?(process.env.OPENAI_MODEL||'gpt-5.6-sol'):null,
-    storage:{configured:storageConfigured,provider:'supabase-postgrest',browserFallback:true},
+    storage:{configured:storageConfigured,provider:storage.provider,mode:storageConfigured?'durable-server-storage':'browser-fallback',browserFallback:!storageConfigured,capabilities:storage.capabilities||{}},
     approvals:{configured:approvalConfigured,signed:true,contentBound:true},
     publishers:{linkedin:linkedinConfigured?'connected':'not-connected',linkedinMode:'direct-official-posts-api',medium:'export-ready',mediumMode:'html-markdown-export'},
-    capabilities:{discover:true,enrichPrimarySources:true,context:true,harness:true,writer:modelConfigured,critic:true,revision:modelConfigured,approval:approvalConfigured,durableMemory:storageConfigured,durableDrafts:storageConfigured,linkedinPublish:linkedinConfigured,mediumExport:true,analytics:storageConfigured&&linkedinConfigured}
+    capabilities:{discover:true,enrichPrimarySources:true,context:true,harness:true,writer:modelConfigured,critic:true,revision:modelConfigured,approval:approvalConfigured,durableMemory:storageConfigured&&Boolean(storage.capabilities?.profile),durableDrafts:storageConfigured&&Boolean(storage.capabilities?.drafts),durableResearch:storageConfigured&&Boolean(storage.capabilities?.research),durableBriefs:storageConfigured&&Boolean(storage.capabilities?.briefs),publicationReceipts:storageConfigured&&Boolean(storage.capabilities?.publications),linkedinPublish:linkedinConfigured,mediumExport:true,analytics:storageConfigured&&linkedinConfigured}
   });
 };
