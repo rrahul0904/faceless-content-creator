@@ -14,6 +14,7 @@ This ledger separates product facts, community pain points, creator reference pa
 | CP-04 | community | Reddit /r/linkedin — `Every single post on LinkedIn is made with AI...` | Strong negative reaction to repetitive AI-shaped LinkedIn writing. | High for sentiment | Generic tone and recognizable AI structures are product failure conditions, not cosmetic issues. |
 | CP-05 | community | Reddit /r/linkedin — `Every post on linkedin is Ai` | Users call out repeated wording/punctuation and sameness across posts. | High for sentiment | Critic must include anti-template / anti-sameness checks and require creator-specific perspective. |
 | CP-06 | community | Reddit /r/ProductivityApps — clipped/shared content organization thread | Users save LinkedIn posts, web pages, PDFs, screenshots and notes across many places and want one searchable system. | Medium | Research inbox should accept heterogeneous sources and preserve the user's annotation/reaction. |
+| CP-07 | community | ThreadifyAI launch thread in /r/micro_saas | A commenter asks for side-by-side visibility from source passage → extracted hook → finished carousel and asks whether generated hooks can be traced back to the source timestamp. | High for product-design signal | Repurposing must preserve source traceability at the extracted-claim/hook level. A generated artifact should expose exactly which source segment produced it. |
 
 ## B. Competitive product facts
 
@@ -26,6 +27,7 @@ This ledger separates product facts, community pain points, creator reference pa
 | COMP-05 | official-doc | `https://authoredup.com/product/analytics` and help center | AuthoredUp supports performance summaries, post comparison, historical posts, filtering, reuse and analytics. | High | Library + comparative analytics + repurposing should be in scope once publication data is real. |
 | COMP-06 | official-doc | AuthoredUp platform/editor docs | AuthoredUp's platform editor has LinkedIn-specific limitations and sometimes hands control back to LinkedIn. | High | Creator Console needs explicit capability boundaries and must not pretend platform APIs support things they do not. |
 | COMP-07 | first-party-public | `https://type.ai/` | Type integrates document editing and AI in the same workspace, retains rich context/notes, supports style rules, version history and exports. | High | Editing should be first-class and persistent; AI should operate on the artifact in place rather than through a separate chat-only workflow. |
+| COMP-08 | first-party-public (maker launch post) | `https://www.reddit.com/r/micro_saas/comments/1wzdvjd/i_built_a_free_tool_that_formats_any_youtube_link/` + `https://threadifyai.com/` | ThreadifyAI's maker describes a no-login workflow that accepts a YouTube URL, uses Claude to extract hooks, and formats the material for LinkedIn/Twitter; the launch positions the output as a LinkedIn carousel/social repurposing artifact. | Medium — direct site was not retrievable in this research pass, so UI/behavior parity is not yet established | Add `source → extracted hook/claim → platform artifact` repurposing to the competitive matrix. Do not copy a URL-to-post flow blindly; our differentiator is evidence/provenance and technical-content judgment. Direct product walkthrough remains INVESTIGATE. |
 
 ## C. Creator/reference pattern evidence
 
@@ -59,6 +61,7 @@ These are structural references only; they cannot support factual claims unless 
 | INF-04 | inference | REF-05, COMP-01 | Content artifacts should support text + diagram/carousel/code/example briefs, not text alone. | ADOPT |
 | INF-05 | inference | CP-02, CP-03, COMP-07 | Context/memory and revision must live beside the artifact and persist across sessions. | ADOPT |
 | INF-06 | inference | all above | Differentiation is not “AI LinkedIn writer.” It is `technical creator operating system: primary-source research → creator point of view → evidence-backed artifact → multi-format publishing → learning loop`. | PROVISIONAL THESIS |
+| INF-07 | inference | CP-07, COMP-08 | Repurposing from long-form source media is valuable, but each extracted hook/claim should retain a provenance pointer (timestamp/segment/source passage) so the creator can verify meaning before publication. | ADOPT for Research Workbench / Artifact Planner |
 
 ## Source URLs
 
@@ -74,3 +77,5 @@ These are structural references only; they cannot support factual claims unless 
 - https://help.authoredup.com/articles/how-to-use-analytics
 - https://help.authoredup.com/articles/authoredup-on-platform
 - https://type.ai/
+- https://threadifyai.com/
+- https://www.reddit.com/r/micro_saas/comments/1wzdvjd/i_built_a_free_tool_that_formats_any_youtube_link/
