@@ -33,6 +33,8 @@ Verify:
 curl -fsS http://127.0.0.1:8787/health
 ```
 
+Health includes a non-secret `runtimeInstanceId`. It is generated once per service process and remains stable for that process lifetime. A different value after replacement is used as proof that the service really restarted.
+
 The `creator-data` named volume is the persistence boundary. A normal upgrade replaces the container, not the volume.
 
 ## 4. Integrity and backup
@@ -105,9 +107,10 @@ The prepare phase proves:
 - logical brief/source/claim IDs survive;
 - source passage/timestamp provenance survives;
 - an intentionally invalid bundle fails;
-- the failed update rolls back instead of partially committing.
+- the failed update rolls back instead of partially committing;
+- the current `runtimeInstanceId` is recorded in the certification receipt.
 
-Record the emitted `briefId` and receipt.
+Record both `briefId` and `runtimeInstanceId` from the emitted receipt.
 
 ## 7. Replace/restart the service
 
@@ -123,16 +126,24 @@ Do not run `docker compose down -v`; `-v` deletes the persistence boundary.
 
 ## 8. Hosted Slice-A certification — after restart
 
-Using the `briefId` from the prepare receipt:
+Using the values from the prepare receipt:
 
 ```bash
 CREATOR_DATA_URL=https://data.example.com \
 CREATOR_DATA_TOKEN='<token>' \
 CERT_BRIEF_ID='<briefId>' \
+CERT_PREVIOUS_INSTANCE_ID='<runtimeInstanceId-from-prepare>' \
 npm run certify:hosted:recover
 ```
 
-The recover phase verifies the same brief, source, claim relationship, source timestamp, and source passage after service replacement.
+The recover phase verifies:
+
+- the current `runtimeInstanceId` exists and is different from the prepare-phase instance;
+- the same brief/source/claim identities survived;
+- the claim/source relationship survived;
+- the source timestamp and passage survived.
+
+Recovery deliberately **fails** if it is run against the same service process. A data reload alone is not accepted as restart certification.
 
 Only after both certification receipts pass should hosted durability be marked PASS.
 
@@ -142,16 +153,18 @@ For every data-service upgrade:
 
 1. run `npm run integrity`;
 2. create and retain a verified backup;
-3. deploy the new image without deleting the persistent volume;
-4. check `/health`;
-5. load at least one known Content Brief;
-6. keep the previous image reference until recovery is verified.
+3. record the current health `runtimeInstanceId`;
+4. deploy the new image without deleting the persistent volume;
+5. check `/health` and confirm the runtime instance changed;
+6. load at least one known Content Brief;
+7. keep the previous image reference until recovery is verified.
 
 ## 10. Failure rules
 
 - Never count browser `localStorage` as server durability.
 - Never count an ephemeral serverless filesystem as durable storage.
 - Never mark durability PASS because configuration variables exist; health must prove connectivity.
+- Never mark restart recovery PASS if `runtimeInstanceId` did not change.
 - Never destroy the volume during routine container replacement.
 - Never restore an unverified backup over the active database.
 - Never expose the bearer token in browser-side code or public logs.
