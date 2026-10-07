@@ -20,6 +20,113 @@ jobs:
         run: cd creator-console && npm test
       - name: Verify Creator Data Service
         run: cd creator-data-service && npm test
+      - name: Exercise Creator Data Service persistent volume restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN="creator-data-ci-token"
+          VOLUME="creator-data-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          cleanup() {
+            docker rm -f creator-data-ci >/dev/null 2>&1 || true
+            docker volume rm "$VOLUME" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker build -t creator-data-service:ci creator-data-service
+          docker volume create "$VOLUME" >/dev/null
+          docker run -d --name creator-data-ci \
+            -e CREATOR_DATA_TOKEN="$TOKEN" \
+            -v "$VOLUME:/data" \
+            -p 8787:8787 \
+            creator-data-service:ci >/dev/null
+
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
+            if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
+            sleep 1
+          done
+
+          cat > /tmp/creator-brief.json <<'JSON'
+          {
+            "brief": {
+              "id": "ci-volume-brief",
+              "topic": "Source-traceable technical repurposing",
+              "status": "evidence-ready",
+              "mode": "analysis",
+              "teachingOutcome": "Preserve evidence while adapting a long-form source",
+              "creatorTake": "Traceability should survive every transformation.",
+              "platforms": ["linkedin", "medium"]
+            },
+            "sources": [
+              {
+                "id": "source-video-1",
+                "url": "https://example.com/reference-video",
+                "canonicalUrl": "https://example.com/reference-video",
+                "evidenceClass": "first-party-public",
+                "title": "Reference source",
+                "publisher": "Example",
+                "resolutionStatus": "resolved",
+                "sourceLocator": {
+                  "kind": "transcript",
+                  "startSeconds": 42,
+                  "endSeconds": 55,
+                  "passage": "qualified source passage"
+                }
+              }
+            ],
+            "claims": [
+              {
+                "id": "claim-1",
+                "text": "The claim remains tied to its original source segment.",
+                "claimType": "fact",
+                "status": "supported",
+                "confidence": "high",
+                "supportingSourceIds": ["source-video-1"]
+              }
+            ]
+          }
+          JSON
+
+          curl -fsS -X PUT \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/creator-brief.json \
+            http://127.0.0.1:8787/v1/briefs/ci-volume-brief >/tmp/creator-before.json
+
+          node -e '
+            const fs=require("fs");
+            const x=JSON.parse(fs.readFileSync("/tmp/creator-before.json","utf8"));
+            if(x?.data?.brief?.id!=="ci-volume-brief") throw new Error("brief save failed");
+            if(x?.data?.sources?.[0]?.sourceLocator?.startSeconds!==42) throw new Error("source locator missing before restart");
+          '
+
+          docker rm -f creator-data-ci >/dev/null
+          docker run -d --name creator-data-ci \
+            -e CREATOR_DATA_TOKEN="$TOKEN" \
+            -v "$VOLUME:/data" \
+            -p 8787:8787 \
+            creator-data-service:ci >/dev/null
+
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
+            if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
+            sleep 1
+          done
+
+          curl -fsS \
+            -H "Authorization: Bearer $TOKEN" \
+            http://127.0.0.1:8787/v1/briefs/ci-volume-brief >/tmp/creator-after.json
+
+          node -e '
+            const fs=require("fs");
+            const x=JSON.parse(fs.readFileSync("/tmp/creator-after.json","utf8"));
+            const source=x?.data?.sources?.[0];
+            const claim=x?.data?.claims?.[0];
+            if(x?.data?.brief?.id!=="ci-volume-brief") throw new Error("brief did not survive container replacement");
+            if(source?.id!=="source-video-1") throw new Error("source identity changed after restart");
+            if(source?.sourceLocator?.startSeconds!==42 || source?.sourceLocator?.endSeconds!==55) throw new Error("timestamp provenance did not survive restart");
+            if(claim?.id!=="claim-1" || claim?.supportingSourceIds?.[0]!=="source-video-1") throw new Error("claim/source linkage did not survive restart");
+          '
       - name: Install local media engine
         run: |
           sudo apt-get update
