@@ -6,7 +6,7 @@ This contract is derived from the reverse-engineering evidence and feedback matr
 
 ## User job
 
-> Starting from a technical development, URL, question, or saved reference, help me understand what is true, what is uncertain, what practitioners care about, and what I actually want to teach — without forcing me to move evidence among multiple tools.
+> Starting from a technical development, URL, question, saved reference, or long-form source, help me understand what is true, what is uncertain, what practitioners care about, and what I actually want to teach — without forcing me to move evidence among multiple tools.
 
 ## Required workbench regions
 
@@ -18,6 +18,7 @@ Each captured source must visibly show:
 - resolution status;
 - published/captured time where known;
 - snapshot/provenance identifier where available;
+- source segment/timestamp provenance where the source is media or a transcript;
 - whether it may support factual claims.
 
 A source is never displayed simply as “verified.” The reason/classification must be inspectable.
@@ -27,6 +28,7 @@ Every claim must have:
 - exact claim text;
 - claim type (`fact`, `inference`, `creator-opinion`, `author-experience`);
 - supporting source IDs;
+- supporting source segment/timestamp where applicable;
 - evaluated status;
 - confidence;
 - caveat/dispute note.
@@ -53,6 +55,7 @@ The workbench must show:
 - claims with no evidence-capable source;
 - unresolved shortlinks;
 - missing dates/version context;
+- missing source timestamp/segment for media-derived claims where traceability is required;
 - primary-source fetch/enrichment failures.
 
 No drafting gate may pass while a required factual claim remains unresolved or disputed.
@@ -71,7 +74,8 @@ Research may advance only when:
 - experience mode has author-owned support;
 - unresolved/disputed required claims are either resolved or explicitly excluded from the artifact;
 - teaching outcome is non-empty;
-- creator perspective is present for analysis/comparison/opinion-led modes.
+- creator perspective is present for analysis/comparison/opinion-led modes;
+- media-derived required claims/hooks retain a source passage or timestamp pointer when the source provides one.
 
 ## Acceptance scenarios
 
@@ -140,6 +144,18 @@ When moving Research → Artifact Planning:
 - selected/excluded claims are recorded;
 - no plain-text copy/paste handoff is the source of truth.
 
+### B9 — Long-form media repurposing preserves provenance
+Given:
+- a YouTube/video/transcript source;
+- an extracted hook or factual statement selected for a carousel/post/thread;
+
+Then:
+- the extracted item retains its source ID and source segment/timestamp where available;
+- the workbench can show source passage → extracted hook/claim side-by-side;
+- a transformed hook that materially changes the source meaning is not silently accepted;
+- if timestamp/segment resolution fails, the item is marked untraced and cannot count as evidence for a required factual claim;
+- platform-specific wording may change, but the underlying supported meaning and provenance remain linked.
+
 ## Non-goals for Slice B
 
 Do not implement yet:
@@ -153,12 +169,13 @@ Do not implement yet:
 
 ## Verification required before Slice B can advance
 
-1. domain tests for every B1–B8 scenario;
+1. domain tests for every B1–B9 scenario;
 2. negative tests for evidence-class leakage;
 3. durable save/reload of a workbench with sources + claims + perspective;
 4. hosted API receipts;
-5. browser UAT using at least one real official discovery and one community/reference input;
+5. browser UAT using at least one real official discovery, one community/reference input, and one long-form media/transcript input;
 6. refresh/recovery test after source enrichment failure;
-7. exact SHA/deployment receipt;
-8. comparison against this contract and the Feedback Matrix;
-9. tracker status updated only from the resulting evidence.
+7. source-segment/timestamp traceability test for media-derived claims/hooks;
+8. exact SHA/deployment receipt;
+9. comparison against this contract and the Feedback Matrix;
+10. tracker status updated only from the resulting evidence.
