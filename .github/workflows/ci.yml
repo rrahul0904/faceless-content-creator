@@ -76,8 +76,10 @@ jobs:
         run: |
           set -euo pipefail
           PREPARE="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8787 CREATOR_DATA_TOKEN=ci-token npm run --silent certify:hosted:prepare)"
-          CERT_BRIEF_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.rollbackVerified!==true) process.exit(1); process.stdout.write(x.briefId)' "$PREPARE")"
+          CERT_BRIEF_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.rollbackVerified!==true||x.schema!=="creator-hosted-certification/v2") process.exit(1); process.stdout.write(x.briefId)' "$PREPARE")"
+          CERT_PREVIOUS_INSTANCE_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(!x.runtimeInstanceId) process.exit(1); process.stdout.write(x.runtimeInstanceId)' "$PREPARE")"
           test -n "$CERT_BRIEF_ID"
+          test -n "$CERT_PREVIOUS_INSTANCE_ID"
           docker rm -f creator-data-ci
           docker run -d --name creator-data-ci \
             -e CREATOR_DATA_TOKEN=ci-token \
@@ -89,8 +91,8 @@ jobs:
             if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
             sleep 1
           done
-          RECOVER="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8787 CREATOR_DATA_TOKEN=ci-token CERT_BRIEF_ID="$CERT_BRIEF_ID" npm run --silent certify:hosted:recover)"
-          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.restartRecoveryVerified!==true||x.sourceLocatorVerified!==true) process.exit(1)' "$RECOVER"
+          RECOVER="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8787 CREATOR_DATA_TOKEN=ci-token CERT_BRIEF_ID="$CERT_BRIEF_ID" CERT_PREVIOUS_INSTANCE_ID="$CERT_PREVIOUS_INSTANCE_ID" npm run --silent certify:hosted:recover)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.schema!=="creator-hosted-certification/v2"||x.serviceReplacementVerified!==true||x.restartRecoveryVerified!==true||x.sourceLocatorVerified!==true||x.runtimeInstanceId===x.previousRuntimeInstanceId) process.exit(1)' "$RECOVER"
       - name: Install local media engine
         run: |
           sudo apt-get update
