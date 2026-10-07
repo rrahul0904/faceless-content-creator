@@ -26,11 +26,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/creator-data-volume"
+          docker volume create creator-data-ci-volume >/dev/null
           docker run -d --name creator-data-ci \
             -e CREATOR_DATA_TOKEN=ci-token \
             -p 8787:8787 \
-            -v "$RUNNER_TEMP/creator-data-volume:/data" \
+            -v creator-data-ci-volume:/data \
             creator-data-service:ci
           for attempt in {1..30}; do
             if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
@@ -45,7 +45,7 @@ jobs:
           docker run -d --name creator-data-ci \
             -e CREATOR_DATA_TOKEN=ci-token \
             -p 8787:8787 \
-            -v "$RUNNER_TEMP/creator-data-volume:/data" \
+            -v creator-data-ci-volume:/data \
             creator-data-service:ci
           for attempt in {1..30}; do
             if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
@@ -136,3 +136,4 @@ jobs:
           docker rm -f creator-data-ci || true
           docker rm -f faceless-ci || true
           docker rm -f faceless-auth-ci || true
+          docker volume rm creator-data-ci-volume || true
