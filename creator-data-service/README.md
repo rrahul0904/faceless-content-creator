@@ -45,7 +45,7 @@ CREATOR_DATA_DIR=/data
 PORT=8787
 ```
 
-`CREATOR_DATA_TOKEN` is required in normal production operation. Data routes fail closed without the correct bearer token. `/health` is intentionally public and contains no stored content.
+`CREATOR_DATA_TOKEN` is required in normal production operation. Data routes fail closed without the correct bearer token. `/health` is intentionally public and contains no stored content or filesystem path.
 
 ## Local development
 
@@ -94,7 +94,9 @@ CREATOR_DATA_URL=https://<creator-data-service-host>
 CREATOR_DATA_TOKEN=<same-secret>
 ```
 
-When those values are present, Creator Console uses `creator-data-service` for briefs, research, profile, drafts and publication receipts. Supabase remains only a migration fallback and is not required.
+`CREATOR_DATA_API_URL` and `CREATOR_DATA_API_TOKEN` are accepted as temporary migration aliases.
+
+When the URL and token are present, Creator Console uses `creator-data-service` for briefs, research, profile, drafts and publication receipts. On the reverse-engineering reset branch, Supabase variables do not configure storage and Supabase is not a runtime dependency.
 
 ## API v1
 
