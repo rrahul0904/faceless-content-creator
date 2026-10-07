@@ -1,115 +1,47 @@
-# Slice A Verification Record — Persistent Content Brief + Claim/Evidence Model
+# Slice A Verification — Content Brief + Claim/Evidence Persistence
 
-Status: **PARTIAL PASS / BLOCKED ON DURABLE STORAGE**
+Status: **implementation in progress; durable runtime certification pending**.
 
-This record exists to prevent implementation progress from being mistaken for product certification.
+## What is implemented
 
-## Slice A acceptance criteria
+- `ContentBrief` domain model and claim-level evidence gate.
+- Evidence-classified sources and fail-closed factual-claim rules.
+- Deterministic domain receipts for the evidence evaluation path.
+- Creator-owned `creator-data-service` using Node SQLite with WAL, foreign keys and transactional bundle saves.
+- Source-locator persistence for transcript/media provenance (`sourceLocator` with timestamp/passage metadata).
+- Bearer-authenticated HTTP API for durable Content Brief bundle reads/writes.
+- Creator Console adapter using `CREATOR_DATA_API_URL` + `CREATOR_DATA_API_TOKEN`.
+- Capability-level storage reporting so brief persistence does not falsely imply research/draft/profile/publication persistence.
+- Docker + Railway service definition for running the data service on a persistent volume.
 
-| Gate | Result | Evidence |
-|---|---|---|
-| A1 official source may support fact without skipping workflow | PASS | Domain tests + deployed self-test |
-| A2 reference pattern cannot support factual claim | PASS | Domain tests + deployed self-test |
-| A3 unresolved shortlink retained but not evidence-capable | PASS | Domain tests + deployed self-test |
-| A4 unsupported factual claim blocks evidence-ready | PASS | Domain tests + deployed self-test |
-| A5 creator opinion remains separate and may stand without external evidence | PASS | Domain tests + deployed self-test |
-| A6 experience mode requires author-owned evidence/input | PASS | Domain tests + deployed self-test |
-| A7 invalid state transitions fail closed | PASS | Domain tests |
-| A8 serialization / receipt hashing deterministic | PASS | Domain tests + deployed self-test |
-| Hosted API behavior | PASS | `/api/brief-selftest` on verified preview |
-| Browser UAT surface | PASS for served/runtime contract surface | `/brief-uat.html` + `/brief-uat.js` served on preview; browser persistence explicitly labeled fallback |
-| Durable save/reload | BLOCKED | No dedicated Creator Console database is configured |
-| Recovery after durable reload | BLOCKED | Depends on durable save/reload |
-| Parent repository security/audit | IN VERIFICATION | Next.js patched from 16.3.4 to 16.3.6; normal CI rerun required |
+## Tests required by CI
 
-## Hosted certification receipt
+The repository CI now runs both:
 
-Verified preview code state:
+1. `creator-console` contract tests; and
+2. `creator-data-service` tests covering:
+   - close/reopen durability;
+   - source ID / claim ID preservation;
+   - transcript timestamp/source locator preservation;
+   - transaction rollback on a failed bundle update;
+   - bearer-auth HTTP behavior;
+   - HTTP save/reload round-trip.
 
-- Git SHA: `237f3b37f34f71a93c9901d9995b397ac87c2b4f`
-- Vercel deployment: `dpl_38bRBaAGUqzFgy9Yjmr1F9B6HtGk`
-- route: `GET /api/brief-selftest`
-- response schema: `creator-brief-selftest/v1`
-- HTTP: 200
+## Runtime gate still outstanding
 
-Checks:
+Slice A is not PASS until an actual persistent service is connected to the Vercel preview and the following hosted UAT succeeds:
 
-1. `officialFactBecomesEvidenceReady = true`
-2. `referencePatternCannotSupportFact = true`
-3. `unresolvedCommunityCannotSupportFact = true`
-4. `experienceRequiresAuthorOwnedEvidence = true`
-5. `creatorOpinionCanStandAlone = true`
-6. `receiptReplayDeterministic = true`
+1. deploy `creator-data-service` with a persistent `/data` volume;
+2. configure a strong `CREATOR_DATA_TOKEN` server-side;
+3. set Creator Console preview variables `CREATOR_DATA_API_URL` and `CREATOR_DATA_API_TOKEN`;
+4. verify `/api/storage-health` reports `provider=creator-data-api`, `connected=true`, `capabilities.briefs=true`;
+5. save one real Content Brief bundle through Creator Console;
+6. reload the same brief ID and verify source/claim identity;
+7. restart/redeploy the data service and prove the same brief survives;
+8. exercise a failed update and verify the previous bundle remains intact;
+9. run hosted `/api/brief-selftest` again;
+10. attach exact Git SHA, CI run, Vercel deployment and data-service deployment receipts.
 
-Deterministic official-path receipt observed:
+## Non-workaround rule
 
-`2702d79854ff67f2c9d9ab184c5d38df7bcf37eb9474806115159245c08468d7`
-
-The deployed self-test also reported:
-
-`persistenceConfigured = false`
-
-Therefore the slice is not promoted to complete.
-
-## Browser UAT
-
-The dedicated clean-room surface is deliberately separate from the old donor UI:
-
-- `/brief-uat.html`
-- `/brief-uat.js`
-
-It exercises:
-
-1. live official-source discovery;
-2. source classification and resolution state;
-3. Content Brief capture;
-4. one explicit claim with claim type;
-5. hosted claim-level evidence evaluation;
-6. `evidence-ready` vs `blocked-evidence` result;
-7. deterministic receipt display;
-8. persistence behavior.
-
-If durable storage is unavailable, the browser may save a local fallback but displays:
-
-> This does NOT satisfy the durable-storage roadmap gate.
-
-That behavior is intentional.
-
-## Security issue discovered by verification
-
-The parent application dependency graph was pinned to `next@16.3.4`. Normal CI failed at `npm audit --omit=dev --audit-level=high` because that version falls inside the affected range for the 2026 `next/og ImageResponse` RCE advisory.
-
-Corrective work on this branch:
-
-- `next`: `16.3.4` → `16.3.6`
-- `eslint-config-next`: `16.3.4` → `16.3.6`
-- `package-lock.json` regenerated on GitHub Actions rather than hand-edited
-- temporary lockfile-generation workflow removed after use
-- normal CI remains the authority for final audit/build status
-
-## Durable storage blocker
-
-Connected Supabase projects were inspected. There is no project dedicated to Creator Console. Existing projects belong to other products and are not reused because that would violate product isolation and make later evidence/storage receipts ambiguous.
-
-A dedicated durable store requires an explicit infrastructure provisioning decision before cost-bearing project creation.
-
-Until then:
-
-- `/api/storage-health` must report `configured:false`;
-- `/api/briefs` must not pretend browser persistence is server persistence;
-- PR #20 remains draft/unmerged;
-- Slice B remains specification-only.
-
-## Promotion rule
-
-Slice A may move from `PARTIAL PASS` to `PASS` only when all of the following are attached to this record:
-
-1. dedicated durable store identity;
-2. applied schema evidence;
-3. security advisor result after schema creation;
-4. successful save receipt;
-5. successful reload receipt for the same brief ID;
-6. source + claim identity preserved after reload;
-7. failure/retry recovery test;
-8. exact deployment SHA;
-9. green full CI on that SHA.
+Do not use Supabase or another product database merely to satisfy Slice A. Do not treat browser `localStorage` as durable production persistence. The target is the Creator-owned data-service contract; SQLite is the v1 engine and can later be replaced by PostgreSQL behind the same API.
