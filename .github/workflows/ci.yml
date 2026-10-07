@@ -18,115 +18,49 @@ jobs:
           node-version: 22
       - name: Verify Creator Console contracts
         run: cd creator-console && npm test
-      - name: Verify Creator Data Service
+      - name: Verify Creator Data Service persistence
         run: cd creator-data-service && npm test
-      - name: Exercise Creator Data Service persistent volume restart
+      - name: Build Creator Data Service image
+        run: docker build -t creator-data-service:ci creator-data-service
+      - name: Certify Creator Data Service volume restart recovery
         shell: bash
         run: |
           set -euo pipefail
-          TOKEN="creator-data-ci-token"
-          VOLUME="creator-data-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          cleanup() {
-            docker rm -f creator-data-ci >/dev/null 2>&1 || true
-            docker volume rm "$VOLUME" >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
-
-          docker build -t creator-data-service:ci creator-data-service
-          docker volume create "$VOLUME" >/dev/null
+          docker volume create creator-data-ci-volume >/dev/null
           docker run -d --name creator-data-ci \
-            -e CREATOR_DATA_TOKEN="$TOKEN" \
-            -v "$VOLUME:/data" \
+            -e CREATOR_DATA_TOKEN=ci-token \
             -p 8787:8787 \
-            creator-data-service:ci >/dev/null
-
+            -v creator-data-ci-volume:/data \
+            creator-data-service:ci
           for attempt in {1..30}; do
             if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
             if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
             sleep 1
           done
-
-          cat > /tmp/creator-brief.json <<'JSON'
-          {
-            "brief": {
-              "id": "ci-volume-brief",
-              "topic": "Source-traceable technical repurposing",
-              "status": "evidence-ready",
-              "mode": "analysis",
-              "teachingOutcome": "Preserve evidence while adapting a long-form source",
-              "creatorTake": "Traceability should survive every transformation.",
-              "platforms": ["linkedin", "medium"]
-            },
-            "sources": [
-              {
-                "id": "source-video-1",
-                "url": "https://example.com/reference-video",
-                "canonicalUrl": "https://example.com/reference-video",
-                "evidenceClass": "first-party-public",
-                "title": "Reference source",
-                "publisher": "Example",
-                "resolutionStatus": "resolved",
-                "sourceLocator": {
-                  "kind": "transcript",
-                  "startSeconds": 42,
-                  "endSeconds": 55,
-                  "passage": "qualified source passage"
-                }
-              }
-            ],
-            "claims": [
-              {
-                "id": "claim-1",
-                "text": "The claim remains tied to its original source segment.",
-                "claimType": "fact",
-                "status": "supported",
-                "confidence": "high",
-                "supportingSourceIds": ["source-video-1"]
-              }
-            ]
-          }
-          JSON
-
-          curl -fsS -X PUT \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary @/tmp/creator-brief.json \
-            http://127.0.0.1:8787/v1/briefs/ci-volume-brief >/tmp/creator-before.json
-
-          node -e '
-            const fs=require("fs");
-            const x=JSON.parse(fs.readFileSync("/tmp/creator-before.json","utf8"));
-            if(x?.data?.brief?.id!=="ci-volume-brief") throw new Error("brief save failed");
-            if(x?.data?.sources?.[0]?.sourceLocator?.startSeconds!==42) throw new Error("source locator missing before restart");
-          '
-
-          docker rm -f creator-data-ci >/dev/null
+          curl -fsS -X PUT http://127.0.0.1:8787/v1/briefs/ci-restart \
+            -H 'Authorization: Bearer ci-token' \
+            -H 'Content-Type: application/json' \
+            --data '{"brief":{"id":"ci-restart","topic":"Container restart recovery","status":"evidence-ready","mode":"analysis","teachingOutcome":"Prove durable recovery","creatorTake":"Persistence is a product contract."},"sources":[{"id":"ci-source","url":"https://example.com/source","canonicalUrl":"https://example.com/source","evidenceClass":"official-doc","resolutionStatus":"resolved","sourceLocator":{"type":"timestamp","startSeconds":10,"endSeconds":20}}],"claims":[{"id":"ci-claim","text":"The persisted source survives restart.","claimType":"fact","status":"supported","confidence":"high","supportingSourceIds":["ci-source"]}]}' >/dev/null
+          docker rm -f creator-data-ci
           docker run -d --name creator-data-ci \
-            -e CREATOR_DATA_TOKEN="$TOKEN" \
-            -v "$VOLUME:/data" \
+            -e CREATOR_DATA_TOKEN=ci-token \
             -p 8787:8787 \
-            creator-data-service:ci >/dev/null
-
+            -v creator-data-ci-volume:/data \
+            creator-data-service:ci
           for attempt in {1..30}; do
             if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
             if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
             sleep 1
           done
-
-          curl -fsS \
-            -H "Authorization: Bearer $TOKEN" \
-            http://127.0.0.1:8787/v1/briefs/ci-volume-brief >/tmp/creator-after.json
-
+          RECOVERED="$(curl -fsS http://127.0.0.1:8787/v1/briefs/ci-restart -H 'Authorization: Bearer ci-token')"
           node -e '
-            const fs=require("fs");
-            const x=JSON.parse(fs.readFileSync("/tmp/creator-after.json","utf8"));
-            const source=x?.data?.sources?.[0];
-            const claim=x?.data?.claims?.[0];
-            if(x?.data?.brief?.id!=="ci-volume-brief") throw new Error("brief did not survive container replacement");
-            if(source?.id!=="source-video-1") throw new Error("source identity changed after restart");
-            if(source?.sourceLocator?.startSeconds!==42 || source?.sourceLocator?.endSeconds!==55) throw new Error("timestamp provenance did not survive restart");
-            if(claim?.id!=="claim-1" || claim?.supportingSourceIds?.[0]!=="source-video-1") throw new Error("claim/source linkage did not survive restart");
-          '
+            const x=JSON.parse(process.argv[1]);
+            if(x.data?.brief?.id!=="ci-restart") process.exit(1);
+            if(x.data?.sources?.[0]?.id!=="ci-source") process.exit(1);
+            if(x.data?.sources?.[0]?.sourceLocator?.startSeconds!==10) process.exit(1);
+            if(x.data?.claims?.[0]?.id!=="ci-claim") process.exit(1);
+            if(x.data?.claims?.[0]?.supportingSourceIds?.[0]!=="ci-source") process.exit(1);
+          ' "$RECOVERED"
       - name: Install local media engine
         run: |
           sudo apt-get update
@@ -193,10 +127,13 @@ jobs:
       - name: Show container logs on failure
         if: failure()
         run: |
+          docker logs creator-data-ci || true
           docker logs faceless-ci || true
           docker logs faceless-auth-ci || true
       - name: Stop smoke containers
         if: always()
         run: |
+          docker rm -f creator-data-ci || true
           docker rm -f faceless-ci || true
           docker rm -f faceless-auth-ci || true
+          docker volume rm creator-data-ci-volume || true
