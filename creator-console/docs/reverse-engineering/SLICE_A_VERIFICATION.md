@@ -40,13 +40,15 @@ Implemented:
 - restart recovery via the same database file;
 - rollback on failed bundle writes.
 
-CI now runs `creator-data-service` persistence tests independently from Creator Console tests.
+CI runs `creator-data-service` persistence tests independently from Creator Console tests.
 
 ## Current hosting blocker
 
-Railway was evaluated as a persistent-volume host. The connected Railway workspace currently rejects new project creation because its trial is expired and requires a plan selection. No billing change was made automatically.
+Railway was evaluated as one possible persistent-volume host. The connected Railway workspace currently rejects new project creation because its trial is expired and requires a plan selection. No billing change was made automatically.
 
-Therefore the remaining Slice A blocker is not Supabase. It is:
+Railway is therefore **not** a product dependency. Any approved host that provides a durable filesystem or block volume is acceptable.
+
+The remaining Slice A blocker is:
 
 > deploy the Creator Data Service on an approved host with persistent disk, configure `CREATOR_DATA_URL` + `CREATOR_DATA_TOKEN`, and run hosted save/reload/restart recovery UAT.
 
