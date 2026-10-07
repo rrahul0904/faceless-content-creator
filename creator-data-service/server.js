@@ -3,7 +3,7 @@
 const http=require('node:http');
 const {URL}=require('node:url');
 const {timingSafeEqual}=require('node:crypto');
-const {createCreatorStore}=require('./store');
+const {createCreatorStore}=require('./scoped-store');
 const MAX_BODY_BYTES=2*1024*1024;
 function send(res,status,body){const payload=JSON.stringify(body);res.writeHead(status,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(payload),'cache-control':'no-store','x-content-type-options':'nosniff'});res.end(payload)}
 async function readJson(req){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>MAX_BODY_BYTES)throw Object.assign(new Error('request body too large'),{status:413,code:'BODY_TOO_LARGE'});chunks.push(chunk)}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'))}catch{throw Object.assign(new Error('invalid json body'),{status:400,code:'INVALID_JSON'})}}
