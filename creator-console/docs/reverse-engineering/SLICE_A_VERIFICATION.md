@@ -27,6 +27,8 @@ The repository CI now runs both:
    - bearer-auth HTTP behavior;
    - HTTP save/reload round-trip.
 
+These tests are requirements, not claims of success until the exact-head CI run completes.
+
 ## Runtime gate still outstanding
 
 Slice A is not PASS until an actual persistent service is connected to the Vercel preview and the following hosted UAT succeeds:
