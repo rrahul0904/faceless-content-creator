@@ -46,7 +46,7 @@ CREATOR_DATA_BACKUP_DIR=/data/backups
 PORT=8787
 ```
 
-`CREATOR_DATA_TOKEN` is required in normal production operation. Data routes fail closed without the correct bearer token. `/health` is intentionally public and contains no stored content or filesystem path.
+`CREATOR_DATA_TOKEN` is required in normal production operation. Data routes fail closed without the correct bearer token. `/health` is intentionally public and contains no stored content or filesystem path. It includes a non-secret `runtimeInstanceId`, generated once per service process, so restart certification can prove that the runtime actually changed.
 
 ## Local development
 
@@ -119,18 +119,19 @@ CREATOR_DATA_TOKEN='<token>' \
 npm run certify:hosted:prepare
 ```
 
-The prepare phase saves and reloads a real evidence bundle and proves an intentionally invalid update rolls back atomically.
+The prepare phase saves and reloads a real evidence bundle, proves an intentionally invalid update rolls back atomically, and records the current `runtimeInstanceId`.
 
-After replacing/restarting the service while keeping the same `/data` volume:
+After replacing/restarting the service while keeping the same `/data` volume, use both values emitted by prepare:
 
 ```bash
 CREATOR_DATA_URL=https://data.example.com \
 CREATOR_DATA_TOKEN='<token>' \
 CERT_BRIEF_ID='<brief-id-from-prepare>' \
+CERT_PREVIOUS_INSTANCE_ID='<runtime-instance-id-from-prepare>' \
 npm run certify:hosted:recover
 ```
 
-The recover phase verifies the same brief/source/claim identities plus source timestamp/passage provenance after restart.
+The recover phase verifies the same brief/source/claim identities plus source timestamp/passage provenance **and** requires the current runtime instance to differ from the prepare-phase instance. Recover fails if no real service replacement occurred.
 
 ## Creator Console configuration
 
@@ -192,7 +193,9 @@ Hosted Slice A certification requires:
 1. save a real Content Brief bundle;
 2. reload it;
 3. prove an invalid bundle rolls back without partial persistence;
-4. replace/restart the service process/container;
-5. reload the same IDs from the same volume;
-6. verify source timestamp/passage provenance survived;
-7. attach exact code/deployment receipts.
+4. record the current runtime instance identity;
+5. replace/restart the service process/container while keeping the same volume;
+6. prove the runtime identity changed;
+7. reload the same logical IDs from the same volume;
+8. verify source timestamp/passage provenance survived;
+9. attach exact code/deployment receipts.
