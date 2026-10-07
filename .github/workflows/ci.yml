@@ -20,6 +20,8 @@ jobs:
         run: cd creator-console && npm test
       - name: Verify Creator Data Service persistence
         run: cd creator-data-service && npm test
+      - name: Validate Creator Data Service Compose contract
+        run: CREATOR_DATA_TOKEN=ci-token docker compose -f creator-data-service/docker-compose.yml config >/dev/null
       - name: Build Creator Data Service image
         run: docker build -t creator-data-service:ci creator-data-service
       - name: Certify Creator Data Service volume restart recovery
@@ -61,6 +63,14 @@ jobs:
             if(x.data?.claims?.[0]?.id!=="ci-claim") process.exit(1);
             if(x.data?.claims?.[0]?.supportingSourceIds?.[0]!=="ci-source") process.exit(1);
           ' "$RECOVERED"
+      - name: Certify Creator Data Service integrity and backup commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          INTEGRITY="$(docker exec creator-data-ci npm run --silent integrity)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.schema!=="creator-data-integrity/v1") process.exit(1)' "$INTEGRITY"
+          BACKUP="$(docker exec creator-data-ci npm run --silent backup)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.schema!=="creator-data-backup-receipt/v1"||!/^[a-f0-9]{64}$/.test(x.sha256||"")) process.exit(1)' "$BACKUP"
       - name: Install local media engine
         run: |
           sudo apt-get update
