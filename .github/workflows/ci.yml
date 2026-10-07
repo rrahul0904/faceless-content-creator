@@ -26,6 +26,8 @@ jobs:
       - run: mkdir -p data/renders data/work && npm run db:push
       - run: npm run lint
       - run: npm run typecheck
+      - name: Exercise RE-375 workflow compiler contracts
+        run: npm run workflow:smoke
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
