@@ -1,21 +1,78 @@
 'use strict';
-function config(){const url=process.env.SUPABASE_URL||process.env.CREATOR_SUPABASE_URL||'',key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.CREATOR_SUPABASE_SECRET_KEY||'';return{configured:Boolean(url&&key),url:url.replace(/\/$/,''),key}}
-async function request(path,{method='GET',body,headers={}}={}){const c=config();if(!c.configured)throw Object.assign(new Error('Durable storage is not configured'),{code:'STORAGE_NOT_CONFIGURED'});const r=await fetch(`${c.url}/rest/v1/${path}`,{method,headers:{apikey:c.key,Authorization:`Bearer ${c.key}`,'Content-Type':'application/json',Prefer:'return=representation',...headers},body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw Object.assign(new Error(`Storage request failed: ${r.status}`),{code:'STORAGE_REQUEST_FAILED',status:r.status,details:data});return data}
+
+function creatorDataConfig(){
+  const url=String(process.env.CREATOR_DATA_URL||'').replace(/\/$/,'');
+  const token=String(process.env.CREATOR_DATA_TOKEN||'');
+  return{configured:Boolean(url&&token),url,token};
+}
+function supabaseConfig(){
+  const url=String(process.env.SUPABASE_URL||process.env.CREATOR_SUPABASE_URL||'').replace(/\/$/,'');
+  const key=String(process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.CREATOR_SUPABASE_SECRET_KEY||'');
+  return{configured:Boolean(url&&key),url,key};
+}
+function config(){
+  const data=creatorDataConfig(),legacy=supabaseConfig();
+  if(data.configured)return{configured:true,provider:'creator-data-service',url:data.url,capabilities:{briefs:true,drafts:false,research:false,profile:false,publications:false}};
+  if(legacy.configured)return{configured:true,provider:'supabase-postgrest',url:legacy.url,capabilities:{briefs:true,drafts:true,research:true,profile:true,publications:true}};
+  return{configured:false,provider:'creator-data-service',url:'',capabilities:{briefs:false,drafts:false,research:false,profile:false,publications:false}};
+}
+function capability(name){return Boolean(config().capabilities?.[name])}
+function storageError(message='Durable storage is not configured'){return Object.assign(new Error(message),{code:'STORAGE_NOT_CONFIGURED'})}
+
+async function creatorRequest(path,{method='GET',body}={}){
+  const c=creatorDataConfig();if(!c.configured)throw storageError('Creator Data Service is not configured');
+  const r=await fetch(`${c.url}${path}`,{method,headers:{Authorization:`Bearer ${c.token}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data={raw:text}}
+  if(r.status===404)return null;
+  if(!r.ok)throw Object.assign(new Error(`Creator Data Service request failed: ${r.status}`),{code:'STORAGE_REQUEST_FAILED',status:r.status,details:data});
+  return data;
+}
+async function supabaseRequest(path,{method='GET',body,headers={}}={}){
+  const c=supabaseConfig();if(!c.configured)throw storageError();
+  const r=await fetch(`${c.url}/rest/v1/${path}`,{method,headers:{apikey:c.key,Authorization:`Bearer ${c.key}`,'Content-Type':'application/json',Prefer:'return=representation',...headers},body:body===undefined?undefined:JSON.stringify(body)});
+  const text=await r.text();let data=null;try{data=text?JSON.parse(text):null}catch{data=text}
+  if(!r.ok)throw Object.assign(new Error(`Storage request failed: ${r.status}`),{code:'STORAGE_REQUEST_FAILED',status:r.status,details:data});return data;
+}
+function requireLegacy(cap){if(!supabaseConfig().configured)throw storageError(`${cap} persistence is not yet implemented by Creator Data Service`)}
+
 function cleanDraft(d){return{run_id:String(d.runId||d.run_id||''),platform:String(d.platform||''),topic:String(d.topic||'').slice(0,1000),content:String(d.content||''),status:String(d.status||'draft').slice(0,80),version:Math.max(1,Number(d.version||1)),run_receipt:d.runReceipt||d.run_receipt||null,approval_receipt:d.approvalReceipt||d.approval_receipt||null}}
-async function saveDraft(d){const row=cleanDraft(d);if(!row.run_id||!row.platform||!row.topic||!row.content)throw Object.assign(new Error('runId, platform, topic and content are required'),{code:'INVALID_DRAFT'});return request('creator_drafts?on_conflict=run_id,platform,version',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:row})}
-async function listDrafts(limit=50){return request(`creator_drafts?select=*&order=created_at.desc&limit=${Math.max(1,Math.min(200,Number(limit||50)))}`)}
-async function saveResearch(items=[]){const rows=(Array.isArray(items)?items:[]).slice(0,100).filter(x=>x?.id&&x?.sourceUrl).map(x=>({id:String(x.id),source_url:String(x.sourceUrl),vendor:String(x.vendor||''),topic:String(x.topic||x.sourceTitle||'').slice(0,1000),published_at:x.publishedAt||null,status:String(x.status||'discovered'),payload:x,updated_at:new Date().toISOString()}));if(!rows.length)return[];return request('creator_research_items?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:rows})}
-async function listResearch(limit=100){return request(`creator_research_items?select=*&order=published_at.desc.nullslast,discovered_at.desc&limit=${Math.max(1,Math.min(250,Number(limit||100)))}`)}
-async function saveProfile(profile={}){const row={id:'default',identity:profile.identity||{},voice:profile.voice||{},expertise:Array.isArray(profile.expertise)?profile.expertise:[],updated_at:new Date().toISOString()};return request('creator_profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:row})}
-async function getProfile(){const rows=await request('creator_profiles?id=eq.default&select=*');return Array.isArray(rows)&&rows.length?rows[0]:null}
-function cleanBrief(b={}){return{id:String(b.id||''),topic:String(b.topic||'').slice(0,1000),status:String(b.status||'captured').slice(0,80),mode:String(b.mode||'factual-explainer').slice(0,80),trigger:String(b.trigger||'').slice(0,4000),audience:String(b.audience||'').slice(0,1000),teaching_outcome:String(b.teachingOutcome||b.teaching_outcome||'').slice(0,2000),creator_take:String(b.creatorTake||b.creator_take||'').slice(0,6000),platforms:Array.isArray(b.platforms)?b.platforms:[],artifact_plan:b.artifactPlan||b.artifact_plan||null,warnings:Array.isArray(b.warnings)?b.warnings:[],payload:b,updated_at:new Date().toISOString()}}
-async function saveBrief(b){const row=cleanBrief(b);if(!row.id||!row.topic)throw Object.assign(new Error('brief id and topic are required'),{code:'INVALID_BRIEF'});return request('creator_content_briefs?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:row})}
-async function listBriefs(limit=50){return request(`creator_content_briefs?select=*&order=updated_at.desc&limit=${Math.max(1,Math.min(200,Number(limit||50)))}`)}
-async function getBrief(id){const safe=encodeURIComponent(String(id||''));const rows=await request(`creator_content_briefs?id=eq.${safe}&select=*`);return Array.isArray(rows)&&rows.length?rows[0]:null}
-async function saveSources(briefId,sources=[]){const rows=(Array.isArray(sources)?sources:[]).filter(x=>x?.id&&x?.url).map(s=>({id:String(s.id),brief_id:String(briefId),url:String(s.url),canonical_url:String(s.canonicalUrl||s.url),evidence_class:String(s.evidenceClass||''),title:String(s.title||'').slice(0,500),publisher:String(s.publisher||'').slice(0,300),published_at:s.publishedAt||null,captured_at:s.capturedAt||new Date().toISOString(),snapshot_hash:s.snapshotHash||null,user_note:String(s.userNote||'').slice(0,4000),resolution_status:String(s.resolutionStatus||'resolved'),payload:s}));if(!rows.length)return[];return request('creator_sources?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:rows})}
-async function listSources(briefId){return request(`creator_sources?brief_id=eq.${encodeURIComponent(String(briefId||''))}&select=*&order=captured_at.asc`)}
-async function saveClaims(briefId,claims=[]){const rows=(Array.isArray(claims)?claims:[]).filter(x=>x?.id&&x?.text).map(c=>({id:String(c.id),brief_id:String(briefId),claim_text:String(c.text),claim_type:String(c.claimType||'fact'),status:String(c.status||'unresolved'),confidence:String(c.confidence||'unknown'),supporting_source_ids:Array.isArray(c.supportingSourceIds)?c.supportingSourceIds:[],caveat:String(c.caveat||'').slice(0,3000),payload:c,updated_at:new Date().toISOString()}));if(!rows.length)return[];return request('creator_claims?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:rows})}
-async function listClaims(briefId){return request(`creator_claims?brief_id=eq.${encodeURIComponent(String(briefId||''))}&select=*&order=created_at.asc`)}
-async function savePublication(p={}){const row={run_id:String(p.runId||''),platform:String(p.platform||''),external_id:p.externalId||p.postId||null,draft_hash:String(p.draftHash||''),publication_receipt:p.receipt||p};return request('creator_publications',{method:'POST',body:row})}
-async function listPublications(limit=50){return request(`creator_publications?select=*&order=published_at.desc&limit=${Math.max(1,Math.min(200,Number(limit||50)))}`)}
-module.exports={config,request,saveDraft,listDrafts,saveResearch,listResearch,saveProfile,getProfile,saveBrief,listBriefs,getBrief,saveSources,listSources,saveClaims,listClaims,savePublication,listPublications};
+async function saveDraft(d){requireLegacy('draft');const row=cleanDraft(d);if(!row.run_id||!row.platform||!row.topic||!row.content)throw Object.assign(new Error('runId, platform, topic and content are required'),{code:'INVALID_DRAFT'});return supabaseRequest('creator_drafts?on_conflict=run_id,platform,version',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:row})}
+async function listDrafts(limit=50){requireLegacy('draft');return supabaseRequest(`creator_drafts?select=*&order=created_at.desc&limit=${Math.max(1,Math.min(200,Number(limit||50)))}`)}
+async function saveResearch(items=[]){requireLegacy('research');const rows=(Array.isArray(items)?items:[]).slice(0,100).filter(x=>x?.id&&x?.sourceUrl).map(x=>({id:String(x.id),source_url:String(x.sourceUrl),vendor:String(x.vendor||''),topic:String(x.topic||x.sourceTitle||'').slice(0,1000),published_at:x.publishedAt||null,status:String(x.status||'discovered'),payload:x,updated_at:new Date().toISOString()}));if(!rows.length)return[];return supabaseRequest('creator_research_items?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:rows})}
+async function listResearch(limit=100){requireLegacy('research');return supabaseRequest(`creator_research_items?select=*&order=published_at.desc.nullslast,discovered_at.desc&limit=${Math.max(1,Math.min(250,Number(limit||100)))}`)}
+async function saveProfile(profile={}){requireLegacy('profile');const row={id:'default',identity:profile.identity||{},voice:profile.voice||{},expertise:Array.isArray(profile.expertise)?profile.expertise:[],updated_at:new Date().toISOString()};return supabaseRequest('creator_profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:row})}
+async function getProfile(){requireLegacy('profile');const rows=await supabaseRequest('creator_profiles?id=eq.default&select=*');return Array.isArray(rows)&&rows.length?rows[0]:null}
+
+function cleanBrief(b={}){return{id:String(b.id||''),topic:String(b.topic||'').slice(0,1000),status:String(b.status||'captured').slice(0,80),mode:String(b.mode||'factual-explainer').slice(0,80),trigger:String(b.trigger||'').slice(0,4000),audience:String(b.audience||'').slice(0,1000),teachingOutcome:String(b.teachingOutcome||b.teaching_outcome||'').slice(0,2000),creatorTake:String(b.creatorTake||b.creator_take||'').slice(0,6000),platforms:Array.isArray(b.platforms)?b.platforms:[],artifactPlan:b.artifactPlan||b.artifact_plan||null,warnings:Array.isArray(b.warnings)?b.warnings:[]}}
+async function getBriefBundle(id){
+  if(creatorDataConfig().configured){const r=await creatorRequest(`/v1/briefs/${encodeURIComponent(String(id||''))}`);return r?.data||null}
+  if(!supabaseConfig().configured)throw storageError();
+  const brief=await getBrief(id);if(!brief)return null;const[sources,claims]=await Promise.all([listSources(id),listClaims(id)]);return{schema:'creator-content-bundle/v1',brief,sources,claims};
+}
+async function saveBriefBundle(bundle={}){
+  const brief=cleanBrief(bundle.brief||bundle);if(!brief.id||!brief.topic)throw Object.assign(new Error('brief id and topic are required'),{code:'INVALID_BRIEF'});
+  const sources=Array.isArray(bundle.sources)?bundle.sources:[],claims=Array.isArray(bundle.claims)?bundle.claims:[];
+  if(creatorDataConfig().configured){const r=await creatorRequest(`/v1/briefs/${encodeURIComponent(brief.id)}`,{method:'PUT',body:{brief,sources,claims}});return r?.data||null}
+  const savedBrief=await saveBrief(brief),savedSources=await saveSources(brief.id,sources),savedClaims=await saveClaims(brief.id,claims);return{schema:'creator-content-bundle/v1',brief:Array.isArray(savedBrief)?savedBrief[0]:savedBrief,sources:savedSources,claims:savedClaims};
+}
+async function saveBrief(b){
+  const brief=cleanBrief(b);if(!brief.id||!brief.topic)throw Object.assign(new Error('brief id and topic are required'),{code:'INVALID_BRIEF'});
+  if(creatorDataConfig().configured){const current=await getBriefBundle(brief.id);const saved=await saveBriefBundle({brief,sources:current?.sources||[],claims:current?.claims||[]});return[saved.brief]}
+  const row={id:brief.id,topic:brief.topic,status:brief.status,mode:brief.mode,trigger:brief.trigger,audience:brief.audience,teaching_outcome:brief.teachingOutcome,creator_take:brief.creatorTake,platforms:brief.platforms,artifact_plan:brief.artifactPlan,warnings:brief.warnings,payload:b,updated_at:new Date().toISOString()};return supabaseRequest('creator_content_briefs?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:row})
+}
+async function listBriefs(limit=50){if(creatorDataConfig().configured){const r=await creatorRequest(`/v1/briefs?limit=${Math.max(1,Math.min(200,Number(limit||50)))}`);return r?.data||[]}return supabaseRequest(`creator_content_briefs?select=*&order=updated_at.desc&limit=${Math.max(1,Math.min(200,Number(limit||50)))}`)}
+async function getBrief(id){if(creatorDataConfig().configured)return(await getBriefBundle(id))?.brief||null;const rows=await supabaseRequest(`creator_content_briefs?id=eq.${encodeURIComponent(String(id||''))}&select=*`);return Array.isArray(rows)&&rows.length?rows[0]:null}
+async function saveSources(briefId,sources=[]){
+  if(creatorDataConfig().configured){const current=await getBriefBundle(briefId);if(!current)throw Object.assign(new Error('brief not found'),{code:'BRIEF_NOT_FOUND',status:404});const saved=await saveBriefBundle({brief:current.brief,sources,claims:current.claims||[]});return saved.sources}
+  const rows=(Array.isArray(sources)?sources:[]).filter(x=>x?.id&&x?.url).map(s=>({id:String(s.id),brief_id:String(briefId),url:String(s.url),canonical_url:String(s.canonicalUrl||s.url),evidence_class:String(s.evidenceClass||''),title:String(s.title||'').slice(0,500),publisher:String(s.publisher||'').slice(0,300),published_at:s.publishedAt||null,captured_at:s.capturedAt||new Date().toISOString(),snapshot_hash:s.snapshotHash||null,user_note:String(s.userNote||'').slice(0,4000),resolution_status:String(s.resolutionStatus||'resolved'),payload:s}));if(!rows.length)return[];return supabaseRequest('creator_sources?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:rows})
+}
+async function listSources(briefId){if(creatorDataConfig().configured)return(await getBriefBundle(briefId))?.sources||[];return supabaseRequest(`creator_sources?brief_id=eq.${encodeURIComponent(String(briefId||''))}&select=*&order=captured_at.asc`)}
+async function saveClaims(briefId,claims=[]){
+  if(creatorDataConfig().configured){const current=await getBriefBundle(briefId);if(!current)throw Object.assign(new Error('brief not found'),{code:'BRIEF_NOT_FOUND',status:404});const saved=await saveBriefBundle({brief:current.brief,sources:current.sources||[],claims});return saved.claims}
+  const rows=(Array.isArray(claims)?claims:[]).filter(x=>x?.id&&x?.text).map(c=>({id:String(c.id),brief_id:String(briefId),claim_text:String(c.text),claim_type:String(c.claimType||'fact'),status:String(c.status||'unresolved'),confidence:String(c.confidence||'unknown'),supporting_source_ids:Array.isArray(c.supportingSourceIds)?c.supportingSourceIds:[],caveat:String(c.caveat||'').slice(0,3000),payload:c,updated_at:new Date().toISOString()}));if(!rows.length)return[];return supabaseRequest('creator_claims?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:rows})
+}
+async function listClaims(briefId){if(creatorDataConfig().configured)return(await getBriefBundle(briefId))?.claims||[];return supabaseRequest(`creator_claims?brief_id=eq.${encodeURIComponent(String(briefId||''))}&select=*&order=created_at.asc`)}
+async function savePublication(p={}){requireLegacy('publication');const row={run_id:String(p.runId||''),platform:String(p.platform||''),external_id:p.externalId||p.postId||null,draft_hash:String(p.draftHash||''),publication_receipt:p.receipt||p};return supabaseRequest('creator_publications',{method:'POST',body:row})}
+async function listPublications(limit=50){requireLegacy('publication');return supabaseRequest(`creator_publications?select=*&order=published_at.desc&limit=${Math.max(1,Math.min(200,Number(limit||50)))}`)}
+
+module.exports={config,capability,creatorDataConfig,supabaseConfig,saveDraft,listDrafts,saveResearch,listResearch,saveProfile,getProfile,saveBriefBundle,getBriefBundle,saveBrief,listBriefs,getBrief,saveSources,listSources,saveClaims,listClaims,savePublication,listPublications};
