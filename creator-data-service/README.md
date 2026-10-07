@@ -42,6 +42,7 @@ Environment variables:
 ```text
 CREATOR_DATA_TOKEN=<strong-random-secret>
 CREATOR_DATA_DIR=/data
+CREATOR_DATA_BACKUP_DIR=/data/backups
 PORT=8787
 ```
 
@@ -62,15 +63,22 @@ Run certification:
 npm test
 ```
 
-## Docker
+## Portable Docker deployment
 
-Build:
+The preferred generic deployment contract is the included Compose file:
 
 ```bash
-docker build -t creator-data-service ./creator-data-service
+cd creator-data-service
+cp .env.example .env
+# replace CREATOR_DATA_TOKEN in .env with a strong random secret
+docker compose up -d --build
 ```
 
-Run with a named durable volume:
+Compose uses a stable named volume mounted at `/data` and binds to loopback by default. Put HTTPS/TLS in front of the service before connecting a remote Creator Console deployment.
+
+For the full provider-neutral deployment, recovery, upgrade, and hosted certification procedure, see `HOSTING.md`.
+
+Direct Docker is also supported:
 
 ```bash
 docker volume create creator-data
@@ -84,6 +92,45 @@ docker run -d \
 ```
 
 The volume is the durable boundary. Replacing or restarting the container must not replace that volume.
+
+## Integrity and backup operations
+
+Check the active database:
+
+```bash
+npm run integrity
+```
+
+Create a verified SQLite snapshot:
+
+```bash
+npm run backup
+```
+
+Backups are created with SQLite `VACUUM INTO`, reopened, integrity-checked, foreign-key checked, and SHA-256 stamped before a success receipt is returned. By default they are stored under `${CREATOR_DATA_BACKUP_DIR}` or beside the database in `backups/`.
+
+## Hosted durability certification
+
+Before the host restart/replacement:
+
+```bash
+CREATOR_DATA_URL=https://data.example.com \
+CREATOR_DATA_TOKEN='<token>' \
+npm run certify:hosted:prepare
+```
+
+The prepare phase saves and reloads a real evidence bundle and proves an intentionally invalid update rolls back atomically.
+
+After replacing/restarting the service while keeping the same `/data` volume:
+
+```bash
+CREATOR_DATA_URL=https://data.example.com \
+CREATOR_DATA_TOKEN='<token>' \
+CERT_BRIEF_ID='<brief-id-from-prepare>' \
+npm run certify:hosted:recover
+```
+
+The recover phase verifies the same brief/source/claim identities plus source timestamp/passage provenance after restart.
 
 ## Creator Console configuration
 
@@ -144,8 +191,8 @@ Hosted Slice A certification requires:
 
 1. save a real Content Brief bundle;
 2. reload it;
-3. replace/restart the service process/container;
-4. reload the same IDs from the same volume;
-5. verify source timestamp/passage provenance survived;
-6. exercise failed-write rollback;
+3. prove an invalid bundle rolls back without partial persistence;
+4. replace/restart the service process/container;
+5. reload the same IDs from the same volume;
+6. verify source timestamp/passage provenance survived;
 7. attach exact code/deployment receipts.
