@@ -1,11 +1,13 @@
 FROM node:22-bookworm-slim
 WORKDIR /app
 COPY package.json ./
-COPY store.js scoped-store.js server.js ./
-RUN mkdir -p /data && chown -R node:node /app /data
+COPY store.js scoped-store.js server.js ops.js ./
+COPY scripts ./scripts
+RUN mkdir -p /data/backups && chown -R node:node /app /data
 USER node
 ENV NODE_ENV=production
 ENV CREATOR_DATA_DIR=/data
+ENV CREATOR_DATA_BACKUP_DIR=/data/backups
 ENV PORT=8787
 EXPOSE 8787
 VOLUME ["/data"]
