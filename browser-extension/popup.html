@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workflow Capture</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main>
+    <div class="eyebrow">RE-375</div>
+    <h1>Workflow Capture</h1>
+    <p class="muted">Captures clicks, field-change events and navigation. It does not read typed field values, clipboard contents, or keystrokes.</p>
+
+    <label>
+      Workflow name
+      <input id="workflowId" value="browser-workflow" maxlength="100" />
+    </label>
+    <label>
+      Training Studio endpoint
+      <input id="endpoint" value="http://127.0.0.1:3000" />
+    </label>
+
+    <div class="actions">
+      <button id="start">Start capture</button>
+      <button id="stop" class="secondary">Stop</button>
+    </div>
+    <div class="actions">
+      <button id="compile" class="secondary">Compile SOP</button>
+      <button id="render" class="secondary">Generate MP4</button>
+    </div>
+
+    <div id="status" class="status">Ready</div>
+    <div id="summary" class="summary"></div>
+    <pre id="output"></pre>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
