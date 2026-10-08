@@ -135,11 +135,14 @@ jobs:
         run: |
           set -euo pipefail
           PUBLIC_CREATOR_TABLES="$(docker exec creator-postgres-ci psql -At -U postgres -d postgres -c "select count(*) from information_schema.tables where table_schema='public' and table_name like 'creator_%'")"
-          test "$PUBLIC_CREATOR_TABLES" = "0"
           BRIEF_COUNT="$(docker exec creator-postgres-ci psql -At -U postgres -d postgres -c "select count(*) from creator_private.content_briefs where id='$CERT_BRIEF_ID'")"
+          JSON_AUDIT="$(docker exec creator-postgres-ci psql -At -F '|' -U postgres -d postgres -c "select jsonb_typeof(brief), jsonb_typeof(sources), jsonb_typeof(claims), coalesce(brief->>'topic',''), coalesce(sources #>> '{0,sourceLocator,passage}','') from creator_private.content_briefs where id='$CERT_BRIEF_ID'")"
+          echo "public_creator_tables=$PUBLIC_CREATOR_TABLES"
+          echo "brief_count=$BRIEF_COUNT"
+          echo "json_audit=$JSON_AUDIT"
+          test "$PUBLIC_CREATOR_TABLES" = "0"
           test "$BRIEF_COUNT" = "1"
-          SOURCE_PASSAGE="$(docker exec creator-postgres-ci psql -At -U postgres -d postgres -c "select sources->0->'sourceLocator'->>'passage' from creator_private.content_briefs where id='$CERT_BRIEF_ID'")"
-          test "$SOURCE_PASSAGE" = "persistent evidence passage"
+          test "$JSON_AUDIT" = "object|array|array|Hosted durability certification|persistent evidence passage"
 
       - name: Show adapter logs on failure
         if: failure()
