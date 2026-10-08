@@ -1,76 +1,103 @@
-# Creator Console Slice A Verification
+# Slice A Verification — Content Brief + Creator-owned durability
 
-Status: **implementation verified except hosted durable deployment**.
+Status: **code-certified; hosted durability pending**.
 
-## Scope
+Slice A is not complete merely because domain tests pass. It is complete only when the Content Brief, sources, claims and provenance survive a real hosted service replacement on the same durable volume and the Creator Console can reconnect to that service.
 
-Slice A is the persistent `ContentBrief` + source + claim/evidence boundary. The original implementation assumed Supabase/PostgREST. That infrastructure dependency has been removed from the target architecture.
+## Product boundary
 
-The target persistence boundary is now a Creator-owned service:
+```text
+Creator Console
+      |
+      | HTTPS + bearer token
+      v
+Creator Data Service
+      |
+      v
+SQLite durable volume
+```
 
-`Creator Console -> Creator Data API -> durable local database`
+Supabase is not a runtime requirement for the reset branch. Hosting providers remain interchangeable infrastructure behind the Creator Data Service contract.
 
-The first implementation uses Node 22 `node:sqlite` with a persistent filesystem. The API contract is provider-neutral so PostgreSQL or another engine can replace SQLite later without changing Creator Console.
+## Code-level proof already obtained
 
-## Verified domain behavior
+Exact certified SHA before the current documentation-only hosting update:
 
-Hosted `/api/brief-selftest` already certifies:
+`d34d3ecdece711675c2ae326c3381c07e6e687df`
 
-- official factual evidence can become evidence-ready;
-- style/reference posts cannot support factual claims;
-- unresolved community shortlinks cannot support factual claims;
-- author-experience claims require author-owned evidence;
-- creator opinion can stand alone when correctly typed;
-- deterministic receipt replay.
+GitHub Actions CI run `37667150481` / #553: **SUCCESS**.
 
-## Creator Data Service implementation
+The exact-SHA run proves:
 
-Repository path: `creator-data-service/`
+- Creator Console domain contracts;
+- factual claims require evidence-capable sources;
+- reference/style sources cannot silently substantiate facts;
+- unresolved community sources remain non-authoritative;
+- first-person experience requires author-owned evidence;
+- creator opinion may remain opinion without being promoted to fact;
+- deterministic Content Brief receipts;
+- Creator Data Service HTTP contract;
+- bearer-token fail-closed behavior;
+- SQLite WAL + foreign keys + transactional brief bundle writes;
+- close/reopen persistence;
+- cross-brief source/claim isolation;
+- bundle rollback on invalid writes;
+- source passage/timestamp provenance persistence;
+- Docker image build;
+- named-volume destroy/recreate recovery in CI;
+- runtime instance identity changes after service replacement;
+- same-runtime recovery is rejected;
+- SQLite integrity checks;
+- verified backup creation with SHA-256 receipt;
+- portable `prepare -> replace runtime -> recover` hosted-certification workflow;
+- parent application dependency audit, lint, typecheck and build;
+- parent Docker/API acceptance and fail-closed hosted authentication.
 
-Implemented:
+## Creator Console hosted preview proof
 
-- dependency-light Node HTTP API;
-- SQLite durable store;
-- WAL mode + foreign keys + full synchronous writes;
-- transactional Content Brief bundle writes;
-- brief/source/claim identity preservation;
-- source locator persistence for timestamp/passage provenance;
-- deterministic `creator-data-receipt/v1` audit receipts;
-- bearer-token protection for data endpoints;
-- restart recovery via the same database file;
-- rollback on failed bundle writes.
+The latest preview whose Creator Console runtime changed is READY and truthfully reports:
 
-CI runs `creator-data-service` persistence tests independently from Creator Console tests.
+- `provider=creator-data-service`;
+- `configured=false`;
+- `connected=false`;
+- `mode=browser-fallback`;
+- all six Content Brief evidence self-tests passing.
 
-## Current hosting blocker
+This is correct. Environment variables alone must never mark storage durable.
 
-Railway was evaluated as one possible persistent-volume host. The connected Railway workspace currently rejects new project creation because its trial is expired and requires a plan selection. No billing change was made automatically.
+## Remaining hosted certification
 
-Railway is therefore **not** a product dependency. Any approved host that provides a durable filesystem or block volume is acceptable.
+The remaining gate is infrastructure proof, not application design.
 
-The remaining Slice A blocker is:
+Required sequence:
 
-> deploy the Creator Data Service on an approved host with persistent disk, configure `CREATOR_DATA_URL` + `CREATOR_DATA_TOKEN`, and run hosted save/reload/restart recovery UAT.
+1. deploy `creator-data-service` to an approved host with persistent `/data`;
+2. expose it only through HTTPS;
+3. configure a strong server-side `CREATOR_DATA_TOKEN`;
+4. run `certify:hosted:prepare` and retain the emitted `briefId` + `runtimeInstanceId`;
+5. configure the Creator Console preview with `CREATOR_DATA_URL` + `CREATOR_DATA_TOKEN`;
+6. verify `/api/storage-health` reports `provider=creator-data-service`, `configured=true`, `connected=true`;
+7. replace/restart the data-service runtime without deleting the volume;
+8. run `certify:hosted:recover` with the previous runtime instance;
+9. require a different runtime instance plus preserved brief/source/claim IDs and source passage/timestamp provenance;
+10. create and retain a verified hosted backup receipt;
+11. rerun the Creator Console brief self-test with storage connected;
+12. attach exact host deployment/image + Vercel deployment receipts;
+13. only then mark Slice A PASS and begin Slice B implementation.
 
-## Required hosted certification
+## Hosting decision as of 2026-10-08
 
-1. deploy Creator Data Service with a persistent volume;
-2. configure a secret bearer token;
-3. point Creator Console preview to `CREATOR_DATA_URL` and `CREATOR_DATA_TOKEN`;
-4. save one real Content Brief bundle;
-5. reload the same brief and prove source/claim identity preservation;
-6. restart/redeploy the data service;
-7. reload the same brief again;
-8. exercise failed write / rollback recovery;
-9. verify source passage/timestamp provenance survives;
-10. run Creator Console `/api/brief-selftest` again;
-11. attach exact code SHA + service deployment + UI preview receipts;
-12. only then mark Slice A PASS and begin Slice B implementation.
+The detailed provider-neutral comparison lives in `creator-data-service/HOSTING.md`.
 
-## Explicit non-claims
+Current operational order of preference:
 
-- browser `localStorage` is not durable certification;
-- an ephemeral Vercel filesystem is not durable certification;
-- Supabase is not required;
-- Railway is not required;
-- the current Creator Data Service does not yet persist drafts/profile/publications; those capabilities remain explicit follow-on work and are not part of Slice A certification.
+1. an existing approved VPS/VM, if available;
+2. Fly.io tiny Machine + small persistent volume for the lowest clearly documented new-host cost;
+3. Railway if the connected workspace can use an acceptable plan without an unapproved billing change;
+4. Render paid service + persistent disk.
+
+No provider-specific API is allowed to leak into the Creator Console storage contract.
+
+## Merge rule
+
+PR #20 remains draft/unmerged until the hosted restart/recovery sequence above produces an evidence receipt.
