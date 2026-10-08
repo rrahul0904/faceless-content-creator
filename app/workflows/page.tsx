@@ -1,4 +1,5 @@
 import { WorkflowStudio } from '@/components/workflow-studio';
+import './workflows.css';
 
 export default function WorkflowsPage() {
   return (
