@@ -5,8 +5,16 @@
 create schema if not exists creator_private;
 
 revoke all on schema creator_private from public;
-revoke all on schema creator_private from anon;
-revoke all on schema creator_private from authenticated;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on schema creator_private from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on schema creator_private from authenticated';
+  end if;
+end
+$$;
 
 create table if not exists creator_private.service_credentials (
   name text primary key,
@@ -79,9 +87,17 @@ create index if not exists audit_receipts_brief_idx
   on creator_private.audit_receipts (brief_id, created_at desc);
 
 revoke all on all tables in schema creator_private from public;
-revoke all on all tables in schema creator_private from anon;
-revoke all on all tables in schema creator_private from authenticated;
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    execute 'revoke all on all tables in schema creator_private from anon';
+    execute 'alter default privileges in schema creator_private revoke all on tables from anon';
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute 'revoke all on all tables in schema creator_private from authenticated';
+    execute 'alter default privileges in schema creator_private revoke all on tables from authenticated';
+  end if;
+end
+$$;
 
 alter default privileges in schema creator_private revoke all on tables from public;
-alter default privileges in schema creator_private revoke all on tables from anon;
-alter default privileges in schema creator_private revoke all on tables from authenticated;
