@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type CapturedEvent = {
   id: string;
@@ -53,8 +53,8 @@ export function WorkflowStudio() {
   const [videoUrl, setVideoUrl] = useState('');
   const [error, setError] = useState('');
   const [sandboxMessage, setSandboxMessage] = useState('No member invited yet.');
+  const [captureId, setCaptureId] = useState('capture-pending');
   const startedAt = useRef(0);
-  const captureId = useMemo(() => `capture-${Date.now().toString(36)}`, []);
 
   useEffect(() => {
     if (!recording) return;
@@ -100,6 +100,7 @@ export function WorkflowStudio() {
     setVideoUrl('');
     setEvents([]);
     setDurationMs(0);
+    setCaptureId(`capture-${Date.now().toString(36)}`);
     startedAt.current = performance.now();
     setRecording(true);
   };
