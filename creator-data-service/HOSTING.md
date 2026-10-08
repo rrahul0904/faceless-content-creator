@@ -168,3 +168,31 @@ For every data-service upgrade:
 - Never destroy the volume during routine container replacement.
 - Never restore an unverified backup over the active database.
 - Never expose the bearer token in browser-side code or public logs.
+
+## 11. Hosting decision matrix — 2026-10-08
+
+The product remains provider-neutral. These values are operational planning inputs, not dependencies in the Creator Data Service contract.
+
+| Candidate | Persistent-storage fit | Current cost signal | Decision |
+|---|---|---|---|
+| Railway | Native volume; Free plan documents up to 0.5 GB volume, Hobby up to 5 GB. | Free plan is documented as $0/month after trial with a $1/month phase; Hobby has a $5 minimum usage. The currently connected workspace has an expired trial and requires plan selection before a new persistent deployment can be certified. | VALID HOST, but do not change billing without explicit approval. |
+| Fly.io Machines | Native persistent volume + automatic snapshots. | Smallest documented shared CPU machine is about $2.19/month; volumes are $0.15/GB-month; first 10 GB of snapshot storage is free. | CURRENT LOW-COST RECOMMENDATION for this single-user SQLite service, subject to account/billing approval. |
+| Render | Persistent disk is supported on paid web/private/background services. | Persistent disk is $0.25/GB-month, plus paid compute. | VALID HOST, but not the lowest-cost documented option for this service. |
+| Self-managed VPS/VM | Full disk ownership; run the included Docker Compose stack behind TLS. | Provider-specific. | STRONGEST INFRASTRUCTURE CONTROL; use when an existing VM is available or when operational ownership is preferred over PaaS convenience. |
+
+### Selection rule
+
+Prefer the smallest approved host that satisfies all of these:
+
+1. persistent volume survives container replacement;
+2. public HTTPS endpoint can reach only the service API, not the raw filesystem;
+3. secrets are server-side only;
+4. restart/redeploy can be triggered without deleting the volume;
+5. backup artifacts can be copied off-volume;
+6. exact deployment/image identity can be recorded for certification.
+
+Do **not** move the Creator Console storage contract into a provider-specific API. A host is interchangeable infrastructure; `Creator Data Service` remains the product-owned persistence boundary.
+
+### Current recommendation
+
+For a brand-new low-traffic deployment, Fly.io currently has the clearest low fixed cost for the required shape: one tiny machine plus one small persistent volume. Railway remains attractive if the existing account can use its Free plan without a billing change. A pre-existing VPS would be preferable to both if one is already available, because it avoids adding another platform account solely for this service.
