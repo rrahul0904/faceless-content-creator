@@ -45,6 +45,7 @@ jobs:
       - name: Type-check hosted Creator Data Edge adapter
         run: >-
           docker run --rm
+          --entrypoint deno
           -v "$PWD:/work:ro"
           -w /work
           denoland/deno:2.1.4
@@ -56,6 +57,7 @@ jobs:
           set -euo pipefail
           docker run -d --name creator-edge-ci-a \
             --network host \
+            --entrypoint deno \
             -v "$PWD:/work:ro" \
             -w /work \
             -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
@@ -98,6 +100,7 @@ jobs:
           docker rm -f creator-edge-ci-a
           docker run -d --name creator-edge-ci-b \
             --network host \
+            --entrypoint deno \
             -v "$PWD:/work:ro" \
             -w /work \
             -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
