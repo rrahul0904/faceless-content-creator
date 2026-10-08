@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { WorkflowStudio } from '@/components/workflow-studio';
 import './workflows.css';
 
@@ -5,7 +6,7 @@ export default function WorkflowsPage() {
   return (
     <main className="shell">
       <header className="topbar">
-        <a className="brand" href="/">FACELESS</a>
+        <Link className="brand" href="/">FACELESS</Link>
         <div className="pill">Workflow Training Studio</div>
       </header>
 
@@ -16,7 +17,7 @@ export default function WorkflowsPage() {
           <p className="muted">Capture actions, compile a source-linked SOP, and render a narrated training MP4 through the same local-first media engine. Sensitive evidence remains blocked until review.</p>
           <div className="ctaRow">
             <a className="button" href="#workflow-studio">Try the working flow</a>
-            <a className="button secondary" href="/">Back to creator</a>
+            <Link className="button secondary" href="/">Back to creator</Link>
           </div>
         </div>
         <div className="heroCard workflowPromise">
