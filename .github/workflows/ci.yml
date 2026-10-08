@@ -26,6 +26,8 @@ jobs:
       - run: mkdir -p data/renders data/work && npm run db:push
       - run: npm run lint
       - run: npm run typecheck
+      - name: Exercise RE-375 workflow compiler contracts
+        run: npm run workflow:smoke
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
@@ -59,6 +61,12 @@ jobs:
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
         run: npm run limits:smoke
+      - name: Boot isolated RE-375 workflow golden-path app
+        run: docker run -d --name faceless-workflow-ci -p 3002:3000 faceless-content-creator:ci
+      - name: Exercise RE-375 capture contract to real narrated MP4
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3002
+        run: npm run workflow:http:smoke
       - name: Boot hosted API-key mode
         run: docker run -d --name faceless-auth-ci -e FCC_AUTH_MODE=api-key -p 3001:3000 faceless-content-creator:ci
       - name: Create hosted-mode operator API key
@@ -83,9 +91,11 @@ jobs:
         if: failure()
         run: |
           docker logs faceless-ci || true
+          docker logs faceless-workflow-ci || true
           docker logs faceless-auth-ci || true
       - name: Stop smoke containers
         if: always()
         run: |
           docker rm -f faceless-ci || true
+          docker rm -f faceless-workflow-ci || true
           docker rm -f faceless-auth-ci || true

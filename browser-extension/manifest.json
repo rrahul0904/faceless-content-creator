@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "RE-375 Workflow Capture",
+  "version": "0.1.0",
+  "description": "Capture user-approved browser workflow actions as a privacy-bounded event stream for Faceless Workflow Training Studio.",
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "optional_host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Workflow Capture",
+    "default_popup": "popup.html"
+  }
+}

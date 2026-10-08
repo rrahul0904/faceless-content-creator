@@ -17,12 +17,14 @@
     "render:smoke": "node scripts/smoke-render.mjs",
     "http:smoke": "node scripts/smoke-http.mjs",
     "auth:smoke": "node scripts/smoke-auth.mjs",
-    "limits:smoke": "node scripts/smoke-limits.mjs"
+    "limits:smoke": "node scripts/smoke-limits.mjs",
+    "workflow:smoke": "rm -rf .tmp/workflow-smoke && npx tsc --target ES2022 --module commonjs --moduleResolution node --esModuleInterop --skipLibCheck --outDir .tmp/workflow-smoke scripts/workflow-compiler-smoke.ts lib/workflow-compiler/*.ts && node .tmp/workflow-smoke/scripts/workflow-compiler-smoke.js",
+    "workflow:http:smoke": "node scripts/smoke-workflow-http.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
     "lucide-react": "0.544.0",
-    "next": "16.3.4",
+    "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.1.5"
@@ -32,11 +34,13 @@
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.0",
     "prisma": "6.19.3",
     "typescript": "5.9.2"
   },
   "overrides": {
-    "deepmerge-ts": "8.0.1"
+    "deepmerge-ts": "8.0.1",
+    "sharp": "0.35.5",
+    "source-map-js": "1.2.2"
   }
 }
