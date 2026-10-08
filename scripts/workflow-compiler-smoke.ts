@@ -6,6 +6,8 @@ import {
   compileWorkflow,
   diffWorkflowRevisions,
   estimateWorkflowCost,
+  guideToMarkdown,
+  trainingTemplateFromWorkflow,
 } from "../lib/workflow-compiler";
 import type { WorkflowCapture } from "../lib/workflow-compiler";
 
@@ -175,14 +177,27 @@ const unknownCost = estimateWorkflowCost({
 assert.equal(unknownCost.hasUnknownRates, true);
 assert.equal(unknownCost.estimatedTotal, null);
 
+// One graph must deterministically produce both a provenance-rich SOP and a real renderer document.
+const markdown = guideToMarkdown(compiled.graph, compiled.guide);
+assert.match(markdown, /Source revision:/);
+assert.match(markdown, /Source event: `event-open-settings`/);
+assert.match(markdown, /Evidence: `shot-2`/);
+const trainingTemplate = trainingTemplateFromWorkflow(compiled);
+assert.equal(trainingTemplate.pages.length, compiled.graph.steps.length);
+assert.equal(trainingTemplate.pages[0].audioTracks[0].tts?.text, compiled.graph.steps[0].narration);
+assert.equal(trainingTemplate.pages[1].name, "Step 2");
+assert.match(trainingTemplate.description, new RegExp(compiled.graph.revision.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+
 console.log(
   JSON.stringify(
     {
       status: "ok",
       revisionId: compiled.graph.revision.id,
-      assertions: 29,
+      assertions: 36,
       invalidatedArtifactKeys: revisionDiff.invalidatedArtifactKeys,
       knownCost,
+      trainingPages: trainingTemplate.pages.length,
+      guideBytes: Buffer.byteLength(markdown),
     },
     null,
     2,
