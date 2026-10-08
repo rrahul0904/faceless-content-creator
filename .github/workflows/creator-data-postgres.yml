@@ -30,7 +30,10 @@ jobs:
             -p 55432:5432 \
             postgres:17-alpine
           for attempt in {1..40}; do
-            if docker exec creator-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            if docker exec creator-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then
+              sleep 2
+              if docker exec creator-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            fi
             if [ "$attempt" = 40 ]; then docker logs creator-postgres-ci; exit 1; fi
             sleep 1
           done
