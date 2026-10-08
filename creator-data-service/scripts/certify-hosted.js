@@ -64,7 +64,7 @@ async function prepare(){
     rollbackVerified:true,sourceLocatorVerified:true,runtimeInstanceId,
     saveReceipt:saved.payload?.receipt||null,
     recoveryFingerprint:createHash('sha256').update(JSON.stringify({id,sourceId:'cert-source',claimId:'cert-claim',startSeconds:42,passage:'persistent evidence passage'})).digest('hex'),
-    next:`Restart or replace the hosted service while preserving its /data volume, then run: CERT_BRIEF_ID=${id} CERT_PREVIOUS_INSTANCE_ID=${runtimeInstanceId} npm run certify:hosted:recover`,
+    next:`Replace or redeploy the hosted Creator Data API runtime while preserving its durable storage, then run: CERT_BRIEF_ID=${id} CERT_PREVIOUS_INSTANCE_ID=${runtimeInstanceId} npm run certify:hosted:recover`,
     preparedAt:new Date().toISOString(),
   };
 }
