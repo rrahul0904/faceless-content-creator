@@ -37,6 +37,14 @@ function canonical(value: unknown): unknown {
   return value
 }
 
+function decodeJson<T>(value: unknown, fallback: T): T {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'string') {
+    try { return JSON.parse(value) as T } catch { return fallback }
+  }
+  return value as T
+}
+
 async function sha256Hex(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -119,11 +127,14 @@ function validateBundle(input: any) {
 
 function mapBriefRow(row: any) {
   if (!row) return null
+  const brief = decodeJson<Record<string, unknown>>(row.brief, {})
+  const sources = decodeJson<unknown[]>(row.sources, [])
+  const claims = decodeJson<unknown[]>(row.claims, [])
   return {
     schema: 'creator-content-bundle/v1',
-    brief: { ...(row.brief || {}), id: row.id, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) },
-    sources: Array.isArray(row.sources) ? row.sources : [],
-    claims: Array.isArray(row.claims) ? row.claims : [],
+    brief: { ...brief, id: row.id, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) },
+    sources: Array.isArray(sources) ? sources : [],
+    claims: Array.isArray(claims) ? claims : [],
   }
 }
 
@@ -176,7 +187,7 @@ async function saveBriefBundle(id: string, input: any) {
 async function getBriefBundle(id: string) {
   const rows = await sql`select * from creator_private.content_briefs where id = ${id}`
   if (!rows.length) return null
-  return { ...mapBriefRow(rows[0]), receipt: rows[0].receipt || null }
+  return { ...mapBriefRow(rows[0]), receipt: decodeJson(rows[0].receipt, null) }
 }
 
 async function health() {
@@ -194,8 +205,6 @@ async function health() {
     apiSchema: 'creator-data-api/v1',
     schemaVersion: 1,
     counts: counts[0] || {},
-    // DENO_DEPLOYMENT_ID changes only when the function is redeployed. That is
-    // the hosted replacement proof used by certify-hosted.js.
     runtimeInstanceId: Deno.env.get('DENO_DEPLOYMENT_ID') || Deno.env.get('SB_EXECUTION_ID') || 'local',
     executionId: Deno.env.get('SB_EXECUTION_ID') || null,
   }
@@ -216,7 +225,8 @@ async function route(req: Request) {
     if (req.method === 'GET') {
       const rows = await sql`select payload, updated_at from creator_private.profile where id = 'default'`
       if (!rows.length) return response(200, { ok: true, data: null })
-      return response(200, { ok: true, data: { ...(rows[0].payload || {}), id: 'default', updatedAt: asIso(rows[0].updated_at) } })
+      const payload = decodeJson<Record<string, unknown>>(rows[0].payload, {})
+      return response(200, { ok: true, data: { ...payload, id: 'default', updatedAt: asIso(rows[0].updated_at) } })
     }
     if (req.method === 'PUT') {
       const body = await readJson(req)
@@ -227,7 +237,7 @@ async function route(req: Request) {
         on conflict (id) do update set payload = excluded.payload, updated_at = now()
         returning payload, updated_at
       `
-      return response(200, { ok: true, data: { ...rows[0].payload, id: 'default', updatedAt: asIso(rows[0].updated_at) } })
+      return response(200, { ok: true, data: { ...decodeJson<Record<string, unknown>>(rows[0].payload, {}), id: 'default', updatedAt: asIso(rows[0].updated_at) } })
     }
     return response(405, { ok: false, code: 'METHOD_NOT_ALLOWED', allowed: ['GET', 'PUT'] })
   }
@@ -236,7 +246,7 @@ async function route(req: Request) {
     if (req.method === 'GET') {
       const limit = boundedLimit(url.searchParams.get('limit'), 100, 250)
       const rows = await sql`select payload from creator_private.research_items order by coalesce(published_at, discovered_at) desc limit ${limit}`
-      return response(200, { ok: true, data: rows.map((row: any) => row.payload || {}) })
+      return response(200, { ok: true, data: rows.map((row: any) => decodeJson<Record<string, unknown>>(row.payload, {})) })
     }
     if (req.method === 'PUT') {
       const body = await readJson(req)
@@ -266,7 +276,7 @@ async function route(req: Request) {
     if (req.method === 'GET') {
       const limit = boundedLimit(url.searchParams.get('limit'), 50, 200)
       const rows = await sql`select payload, created_at, updated_at from creator_private.drafts order by created_at desc limit ${limit}`
-      return response(200, { ok: true, data: rows.map((row: any) => ({ ...(row.payload || {}), createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) })) })
+      return response(200, { ok: true, data: rows.map((row: any) => ({ ...decodeJson<Record<string, unknown>>(row.payload, {}), createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) })) })
     }
     if (req.method === 'PUT') {
       const body = await readJson(req)
@@ -283,7 +293,7 @@ async function route(req: Request) {
         on conflict (run_id, platform, version) do update set payload = excluded.payload, updated_at = now()
         returning payload, created_at, updated_at
       `
-      return response(200, { ok: true, data: { ...rows[0].payload, createdAt: asIso(rows[0].created_at), updatedAt: asIso(rows[0].updated_at) } })
+      return response(200, { ok: true, data: { ...decodeJson<Record<string, unknown>>(rows[0].payload, {}), createdAt: asIso(rows[0].created_at), updatedAt: asIso(rows[0].updated_at) } })
     }
     return response(405, { ok: false, code: 'METHOD_NOT_ALLOWED', allowed: ['GET', 'PUT'] })
   }
@@ -292,7 +302,7 @@ async function route(req: Request) {
     if (req.method === 'GET') {
       const limit = boundedLimit(url.searchParams.get('limit'), 50, 200)
       const rows = await sql`select id, payload, published_at from creator_private.publications order by published_at desc, id desc limit ${limit}`
-      return response(200, { ok: true, data: rows.map((row: any) => ({ id: Number(row.id), ...(row.payload || {}), publishedAt: asIso(row.published_at) })) })
+      return response(200, { ok: true, data: rows.map((row: any) => ({ id: Number(row.id), ...decodeJson<Record<string, unknown>>(row.payload, {}), publishedAt: asIso(row.published_at) })) })
     }
     if (req.method === 'POST') {
       const body = await readJson(req)
@@ -307,7 +317,7 @@ async function route(req: Request) {
         values (${runId}, ${platform}, ${draftHash}, ${JSON.stringify(payload)}::jsonb, ${publishedAt}::timestamptz)
         returning id, payload, published_at
       `
-      return response(201, { ok: true, data: { id: Number(rows[0].id), ...rows[0].payload, publishedAt: asIso(rows[0].published_at) } })
+      return response(201, { ok: true, data: { id: Number(rows[0].id), ...decodeJson<Record<string, unknown>>(rows[0].payload, {}), publishedAt: asIso(rows[0].published_at) } })
     }
     return response(405, { ok: false, code: 'METHOD_NOT_ALLOWED', allowed: ['GET', 'POST'] })
   }
@@ -315,7 +325,7 @@ async function route(req: Request) {
   if (req.method === 'GET' && path === '/v1/briefs') {
     const limit = boundedLimit(url.searchParams.get('limit'), 50, 200)
     const rows = await sql`select id, brief, created_at, updated_at from creator_private.content_briefs order by updated_at desc limit ${limit}`
-    return response(200, { ok: true, data: rows.map((row: any) => ({ ...(row.brief || {}), id: row.id, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) })) })
+    return response(200, { ok: true, data: rows.map((row: any) => ({ ...decodeJson<Record<string, unknown>>(row.brief, {}), id: row.id, createdAt: asIso(row.created_at), updatedAt: asIso(row.updated_at) })) })
   }
 
   const match = path.match(/^\/v1\/briefs\/([^/]+)$/)
