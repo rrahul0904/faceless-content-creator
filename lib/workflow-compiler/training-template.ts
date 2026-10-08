@@ -1,4 +1,4 @@
-import type { TemplateDocument, TemplatePage } from '@/lib/template-engine/schema';
+import type { TemplateDocument, TemplatePage } from '../template-engine/schema';
 import type { CompiledWorkflowArtifacts, WorkflowStep } from './schema';
 
 function pageForStep(step: WorkflowStep, total: number): TemplatePage {
