@@ -46,7 +46,7 @@ jobs:
         run: >-
           docker run --rm
           --entrypoint deno
-          -v "$PWD:/work:ro"
+          -v "$PWD:/work"
           -w /work
           denoland/deno:2.1.4
           check supabase/functions/creator-data/index.ts
@@ -58,7 +58,7 @@ jobs:
           docker run -d --name creator-edge-ci-a \
             --network host \
             --entrypoint deno \
-            -v "$PWD:/work:ro" \
+            -v "$PWD:/work" \
             -w /work \
             -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
             -e DENO_DEPLOYMENT_ID='ci-deploy-a' \
@@ -101,7 +101,7 @@ jobs:
           docker run -d --name creator-edge-ci-b \
             --network host \
             --entrypoint deno \
-            -v "$PWD:/work:ro" \
+            -v "$PWD:/work" \
             -w /work \
             -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
             -e DENO_DEPLOYMENT_ID='ci-deploy-b' \
