@@ -32,7 +32,28 @@ async function expectStatus(pathname, status, init = {}) {
   return result;
 }
 
-const before = await json('/api/v1/limits');
+async function waitForFreshRateWindow(snapshot) {
+  const used = Number(snapshot.data?.rate?.used ?? 0);
+  if (used === 0) return snapshot;
+
+  const resetsAt = Date.parse(snapshot.data?.rate?.resetsAt ?? '');
+  if (!Number.isFinite(resetsAt)) {
+    throw new Error(`Rate snapshot has no valid reset time: ${JSON.stringify(snapshot.data?.rate)}`);
+  }
+
+  const delayMs = Math.max(0, resetsAt - Date.now() + 300);
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+  const fresh = await json('/api/v1/limits');
+  if (fresh.data?.rate?.used !== 0) {
+    throw new Error(`Rate window did not reset cleanly: ${JSON.stringify(fresh.data?.rate)}`);
+  }
+  return fresh;
+}
+
+let before = await json('/api/v1/limits');
+before = await waitForFreshRateWindow(before);
+
 if (before.data?.plan !== 'FREE') throw new Error(`Unexpected test plan: ${JSON.stringify(before)}`);
 if (before.data?.monthly?.renderJobs?.limit !== 2 || before.data?.monthly?.renderJobs?.used < 2) {
   throw new Error(`Render quota override or usage accounting is wrong: ${JSON.stringify(before.data?.monthly?.renderJobs)}`);
@@ -41,8 +62,8 @@ if (before.data?.monthly?.storageMb?.limit !== 1 || before.data?.monthly?.storag
   throw new Error(`Storage quota override or upload accounting is wrong: ${JSON.stringify(before.data?.monthly?.storageMb)}`);
 }
 if (before.data?.members?.limit !== 1) throw new Error(`Membership limit override was not applied: ${JSON.stringify(before.data?.members)}`);
-if (before.data?.rate?.limit !== 7 || before.data?.rate?.used < 5) {
-  throw new Error(`Metered rate override or accounting is wrong: ${JSON.stringify(before.data?.rate)}`);
+if (before.data?.rate?.limit !== 7 || before.data?.rate?.used !== 0) {
+  throw new Error(`Metered rate override or clean-window accounting is wrong: ${JSON.stringify(before.data?.rate)}`);
 }
 
 const member = await json('/api/v1/memberships', {
@@ -106,10 +127,19 @@ if (quotaRejected.body?.code !== 'quota_exceeded' || quotaRejected.body?.limit?.
 }
 if (!quotaRejected.response.headers.get('retry-after')) throw new Error('Render quota response did not include Retry-After');
 
-const rateRejected = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
-if (rateRejected.body?.code !== 'metered_rate_limited') {
-  throw new Error(`Rate-limit rejection was not certified: ${JSON.stringify(rateRejected.body)}`);
+let rateRejected = null;
+for (let attempt = 0; attempt < 10; attempt += 1) {
+  const result = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
+  if (result.body?.code === 'metered_rate_limited') {
+    rateRejected = result;
+    break;
+  }
+  if (result.body?.code !== 'quota_exceeded' || result.body?.limit?.resource !== 'RENDER_JOB') {
+    throw new Error(`Unexpected response while driving rate limit: ${JSON.stringify(result.body)}`);
+  }
 }
+
+if (!rateRejected) throw new Error('Metered rate limit was not reached from a clean rate window');
 if (!rateRejected.response.headers.get('retry-after')) throw new Error('Rate-limit response did not include Retry-After');
 
 const after = await json('/api/v1/limits');

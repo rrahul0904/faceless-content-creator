@@ -16,6 +16,83 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify Creator Console contracts
+        run: cd creator-console && npm test
+      - name: Verify Creator Data Service persistence
+        run: cd creator-data-service && npm test
+      - name: Validate Creator Data Service Compose contract
+        run: CREATOR_DATA_TOKEN=ci-token docker compose -f creator-data-service/docker-compose.yml config >/dev/null
+      - name: Build Creator Data Service image
+        run: docker build -t creator-data-service:ci creator-data-service
+      - name: Certify Creator Data Service volume restart recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker volume create creator-data-ci-volume >/dev/null
+          docker run -d --name creator-data-ci \
+            -e CREATOR_DATA_TOKEN=ci-token \
+            -p 8787:8787 \
+            -v creator-data-ci-volume:/data \
+            creator-data-service:ci
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
+            if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
+            sleep 1
+          done
+          curl -fsS -X PUT http://127.0.0.1:8787/v1/briefs/ci-restart \
+            -H 'Authorization: Bearer ci-token' \
+            -H 'Content-Type: application/json' \
+            --data '{"brief":{"id":"ci-restart","topic":"Container restart recovery","status":"evidence-ready","mode":"analysis","teachingOutcome":"Prove durable recovery","creatorTake":"Persistence is a product contract."},"sources":[{"id":"ci-source","url":"https://example.com/source","canonicalUrl":"https://example.com/source","evidenceClass":"official-doc","resolutionStatus":"resolved","sourceLocator":{"type":"timestamp","startSeconds":10,"endSeconds":20}}],"claims":[{"id":"ci-claim","text":"The persisted source survives restart.","claimType":"fact","status":"supported","confidence":"high","supportingSourceIds":["ci-source"]}]}' >/dev/null
+          docker rm -f creator-data-ci
+          docker run -d --name creator-data-ci \
+            -e CREATOR_DATA_TOKEN=ci-token \
+            -p 8787:8787 \
+            -v creator-data-ci-volume:/data \
+            creator-data-service:ci
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
+            if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
+            sleep 1
+          done
+          RECOVERED="$(curl -fsS http://127.0.0.1:8787/v1/briefs/ci-restart -H 'Authorization: Bearer ci-token')"
+          node -e '
+            const x=JSON.parse(process.argv[1]);
+            if(x.data?.brief?.id!=="ci-restart") process.exit(1);
+            if(x.data?.sources?.[0]?.id!=="ci-source") process.exit(1);
+            if(x.data?.sources?.[0]?.sourceLocator?.startSeconds!==10) process.exit(1);
+            if(x.data?.claims?.[0]?.id!=="ci-claim") process.exit(1);
+            if(x.data?.claims?.[0]?.supportingSourceIds?.[0]!=="ci-source") process.exit(1);
+          ' "$RECOVERED"
+      - name: Certify Creator Data Service integrity and backup commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          INTEGRITY="$(docker exec creator-data-ci npm run --silent integrity)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.schema!=="creator-data-integrity/v1") process.exit(1)' "$INTEGRITY"
+          BACKUP="$(docker exec creator-data-ci npm run --silent backup)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.schema!=="creator-data-backup-receipt/v1"||!/^[a-f0-9]{64}$/.test(x.sha256||"")) process.exit(1)' "$BACKUP"
+      - name: Certify portable hosted prepare and recover workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREPARE="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8787 CREATOR_DATA_TOKEN=ci-token npm run --silent certify:hosted:prepare)"
+          CERT_BRIEF_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.rollbackVerified!==true||x.schema!=="creator-hosted-certification/v2") process.exit(1); process.stdout.write(x.briefId)' "$PREPARE")"
+          CERT_PREVIOUS_INSTANCE_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(!x.runtimeInstanceId) process.exit(1); process.stdout.write(x.runtimeInstanceId)' "$PREPARE")"
+          test -n "$CERT_BRIEF_ID"
+          test -n "$CERT_PREVIOUS_INSTANCE_ID"
+          docker rm -f creator-data-ci
+          docker run -d --name creator-data-ci \
+            -e CREATOR_DATA_TOKEN=ci-token \
+            -p 8787:8787 \
+            -v creator-data-ci-volume:/data \
+            creator-data-service:ci
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
+            if [ "$attempt" = 30 ]; then docker logs creator-data-ci; exit 1; fi
+            sleep 1
+          done
+          RECOVER="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8787 CREATOR_DATA_TOKEN=ci-token CERT_BRIEF_ID="$CERT_BRIEF_ID" CERT_PREVIOUS_INSTANCE_ID="$CERT_PREVIOUS_INSTANCE_ID" npm run --silent certify:hosted:recover)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.schema!=="creator-hosted-certification/v2"||x.serviceReplacementVerified!==true||x.restartRecoveryVerified!==true||x.sourceLocatorVerified!==true||x.runtimeInstanceId===x.previousRuntimeInstanceId) process.exit(1)' "$RECOVER"
       - name: Install local media engine
         run: |
           sudo apt-get update
@@ -82,10 +159,13 @@ jobs:
       - name: Show container logs on failure
         if: failure()
         run: |
+          docker logs creator-data-ci || true
           docker logs faceless-ci || true
           docker logs faceless-auth-ci || true
       - name: Stop smoke containers
         if: always()
         run: |
+          docker rm -f creator-data-ci || true
           docker rm -f faceless-ci || true
           docker rm -f faceless-auth-ci || true
+          docker volume rm creator-data-ci-volume || true

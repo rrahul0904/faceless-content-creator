@@ -1,0 +1,25 @@
+services:
+  creator-data:
+    build:
+      context: .
+    container_name: creator-data-service
+    restart: unless-stopped
+    environment:
+      CREATOR_DATA_TOKEN: ${CREATOR_DATA_TOKEN:?set CREATOR_DATA_TOKEN}
+      CREATOR_DATA_DIR: /data
+      CREATOR_DATA_BACKUP_DIR: /data/backups
+      PORT: 8787
+    ports:
+      - "${CREATOR_DATA_BIND:-127.0.0.1}:${CREATOR_DATA_PORT:-8787}:8787"
+    volumes:
+      - creator_data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+volumes:
+  creator_data:
+    name: ${CREATOR_DATA_VOLUME:-creator-data}

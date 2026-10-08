@@ -1,0 +1,159 @@
+name: Creator Data Postgres
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: creator-data-postgres-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify hosted adapter static contracts
+        run: cd creator-data-service && npm test
+
+      - name: Boot Postgres 17 durable boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name creator-postgres-ci \
+            -e POSTGRES_PASSWORD=postgres \
+            -p 55432:5432 \
+            postgres:17-alpine
+          for attempt in {1..40}; do
+            if docker exec creator-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then
+              sleep 2
+              if docker exec creator-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then break; fi
+            fi
+            if [ "$attempt" = 40 ]; then docker logs creator-postgres-ci; exit 1; fi
+            sleep 1
+          done
+          docker exec -i creator-postgres-ci psql -v ON_ERROR_STOP=1 -U postgres -d postgres < creator-data-service/postgres/schema.sql
+          TOKEN_HASH="$(printf '%s' 'ci-edge-token' | sha256sum | awk '{print $1}')"
+          docker exec creator-postgres-ci psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
+            -c "insert into creator_private.service_credentials(name,token_hash) values ('ci','$TOKEN_HASH')"
+
+      - name: Type-check hosted Creator Data Edge adapter
+        run: >-
+          docker run --rm
+          --entrypoint deno
+          -v "$PWD:/work"
+          -w /work
+          denoland/deno:2.1.4
+          check --config supabase/functions/creator-data/deno.json
+          supabase/functions/creator-data/index.ts
+
+      - name: Boot Edge adapter deployment A
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name creator-edge-ci-a \
+            --network host \
+            --entrypoint deno \
+            -v "$PWD:/work" \
+            -w /work \
+            -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
+            -e DENO_DEPLOYMENT_ID='ci-deploy-a' \
+            denoland/deno:2.1.4 \
+            run --config supabase/functions/creator-data/deno.json --allow-net --allow-env \
+            supabase/functions/creator-data/index.ts
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then break; fi
+            if [ "$attempt" = 40 ]; then docker logs creator-edge-ci-a; exit 1; fi
+            sleep 1
+          done
+          HEALTH="$(curl -fsS http://127.0.0.1:8000/health)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.provider!=="creator-postgres"||x.runtimeInstanceId!=="ci-deploy-a") process.exit(1)' "$HEALTH"
+
+      - name: Prepare hosted durability receipt and reject same-runtime recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREPARE="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8000 CREATOR_DATA_TOKEN=ci-edge-token npm run --silent certify:hosted:prepare)"
+          CERT_BRIEF_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.rollbackVerified!==true||x.sourceLocatorVerified!==true) process.exit(1); process.stdout.write(x.briefId)' "$PREPARE")"
+          CERT_PREVIOUS_INSTANCE_ID="$(node -e 'const x=JSON.parse(process.argv[1]); if(x.runtimeInstanceId!=="ci-deploy-a") process.exit(1); process.stdout.write(x.runtimeInstanceId)' "$PREPARE")"
+          echo "CERT_BRIEF_ID=$CERT_BRIEF_ID" >> "$GITHUB_ENV"
+          echo "CERT_PREVIOUS_INSTANCE_ID=$CERT_PREVIOUS_INSTANCE_ID" >> "$GITHUB_ENV"
+
+          set +e
+          SAME_RUNTIME="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8000 CREATOR_DATA_TOKEN=ci-edge-token CERT_BRIEF_ID="$CERT_BRIEF_ID" CERT_PREVIOUS_INSTANCE_ID="$CERT_PREVIOUS_INSTANCE_ID" npm run --silent certify:hosted:recover 2>&1)"
+          SAME_STATUS=$?
+          set -e
+          if [ "$SAME_STATUS" -eq 0 ]; then
+            echo 'same-runtime recovery unexpectedly passed'
+            echo "$SAME_RUNTIME"
+            exit 1
+          fi
+          node -e 'const x=JSON.parse(process.argv[1]); if(!String(x.error||"").includes("did not change")) process.exit(1)' "$SAME_RUNTIME"
+
+      - name: Replace Edge adapter while preserving Postgres data
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker rm -f creator-edge-ci-a
+          docker run -d --name creator-edge-ci-b \
+            --network host \
+            --entrypoint deno \
+            -v "$PWD:/work" \
+            -w /work \
+            -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
+            -e DENO_DEPLOYMENT_ID='ci-deploy-b' \
+            denoland/deno:2.1.4 \
+            run --config supabase/functions/creator-data/deno.json --allow-net --allow-env \
+            supabase/functions/creator-data/index.ts
+          for attempt in {1..40}; do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then break; fi
+            if [ "$attempt" = 40 ]; then docker logs creator-edge-ci-b; exit 1; fi
+            sleep 1
+          done
+          HEALTH="$(curl -fsS http://127.0.0.1:8000/health)"
+          node -e 'const x=JSON.parse(process.argv[1]); if(x.ok!==true||x.runtimeInstanceId!=="ci-deploy-b") process.exit(1)' "$HEALTH"
+
+      - name: Recover hosted durability receipt after deployment replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          RECOVER="$(cd creator-data-service && CREATOR_DATA_URL=http://127.0.0.1:8000 CREATOR_DATA_TOKEN=ci-edge-token CERT_BRIEF_ID="$CERT_BRIEF_ID" CERT_PREVIOUS_INSTANCE_ID="$CERT_PREVIOUS_INSTANCE_ID" npm run --silent certify:hosted:recover)"
+          node -e '
+            const x=JSON.parse(process.argv[1]);
+            if(x.ok!==true) process.exit(1);
+            if(x.serviceReplacementVerified!==true||x.restartRecoveryVerified!==true||x.sourceLocatorVerified!==true) process.exit(1);
+            if(x.previousRuntimeInstanceId!=="ci-deploy-a"||x.runtimeInstanceId!=="ci-deploy-b") process.exit(1);
+          ' "$RECOVER"
+
+      - name: Verify private-schema isolation and persisted certification data
+        shell: bash
+        run: |
+          set -euo pipefail
+          PUBLIC_CREATOR_TABLES="$(docker exec creator-postgres-ci psql -At -U postgres -d postgres -c "select count(*) from information_schema.tables where table_schema='public' and table_name like 'creator_%'")"
+          BRIEF_COUNT="$(docker exec creator-postgres-ci psql -At -U postgres -d postgres -c "select count(*) from creator_private.content_briefs where id='$CERT_BRIEF_ID'")"
+          JSON_AUDIT="$(docker exec creator-postgres-ci psql -At -F '|' -U postgres -d postgres -c "select jsonb_typeof(brief), jsonb_typeof(sources), jsonb_typeof(claims), coalesce(brief->>'topic',''), coalesce(sources #>> '{0,sourceLocator,passage}','') from creator_private.content_briefs where id='$CERT_BRIEF_ID'")"
+          echo "public_creator_tables=$PUBLIC_CREATOR_TABLES"
+          echo "brief_count=$BRIEF_COUNT"
+          echo "json_audit=$JSON_AUDIT"
+          test "$PUBLIC_CREATOR_TABLES" = "0"
+          test "$BRIEF_COUNT" = "1"
+          test "$JSON_AUDIT" = "object|array|array|Hosted durability certification|persistent evidence passage"
+
+      - name: Show adapter logs on failure
+        if: failure()
+        run: |
+          docker logs creator-edge-ci-a || true
+          docker logs creator-edge-ci-b || true
+          docker logs creator-postgres-ci || true
+
+      - name: Stop adapter certification containers
+        if: always()
+        run: |
+          docker rm -f creator-edge-ci-a || true
+          docker rm -f creator-edge-ci-b || true
+          docker rm -f creator-postgres-ci || true
