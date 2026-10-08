@@ -49,7 +49,8 @@ jobs:
           -v "$PWD:/work"
           -w /work
           denoland/deno:2.1.4
-          check supabase/functions/creator-data/index.ts
+          check --config supabase/functions/creator-data/deno.json
+          supabase/functions/creator-data/index.ts
 
       - name: Boot Edge adapter deployment A
         shell: bash
@@ -63,7 +64,8 @@ jobs:
             -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
             -e DENO_DEPLOYMENT_ID='ci-deploy-a' \
             denoland/deno:2.1.4 \
-            run --allow-net --allow-env supabase/functions/creator-data/index.ts
+            run --config supabase/functions/creator-data/deno.json --allow-net --allow-env \
+            supabase/functions/creator-data/index.ts
           for attempt in {1..40}; do
             if curl -fsS http://127.0.0.1:8000/health >/dev/null; then break; fi
             if [ "$attempt" = 40 ]; then docker logs creator-edge-ci-a; exit 1; fi
@@ -106,7 +108,8 @@ jobs:
             -e SUPABASE_DB_URL='postgres://postgres:postgres@127.0.0.1:55432/postgres' \
             -e DENO_DEPLOYMENT_ID='ci-deploy-b' \
             denoland/deno:2.1.4 \
-            run --allow-net --allow-env supabase/functions/creator-data/index.ts
+            run --config supabase/functions/creator-data/deno.json --allow-net --allow-env \
+            supabase/functions/creator-data/index.ts
           for attempt in {1..40}; do
             if curl -fsS http://127.0.0.1:8000/health >/dev/null; then break; fi
             if [ "$attempt" = 40 ]; then docker logs creator-edge-ci-b; exit 1; fi
