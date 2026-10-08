@@ -20,9 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Regenerate lock with current patched Next dependencies
+      - name: Regenerate lock from pinned patched dependency graph
         run: |
-          npm install --package-lock-only --save-exact next@16.4.0 eslint-config-next@16.4.0
+          npm install --package-lock-only
           npm audit --omit=dev --audit-level=high
       - name: Commit patched lock
         run: |
