@@ -9,6 +9,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  creator-console-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify Creator Console contracts
+        run: npm --prefix creator-console test
+
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -22,6 +32,8 @@ jobs:
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high
+      - name: Verify Creator Console contracts
+        run: npm --prefix creator-console test
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
       - run: npm run lint
