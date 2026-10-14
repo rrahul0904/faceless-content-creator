@@ -1,13 +1,25 @@
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
+const Visual = z.object({
+  id: z.string(),
+  sentence: z.string(),
+  query: z.string(),
+  provider: z.enum(['wikimedia', 'search']),
+  imageUrl: z.string().url().optional(),
+  sourceUrl: z.string().url(),
+  attribution: z.string().optional(),
+});
+
 const PatchInput = z.object({
-  status: z.enum(['IDEA', 'SCRIPTED', 'RENDERING', 'REVIEW', 'APPROVED', 'SCHEDULED', 'PUBLISHED', 'FAILED']).optional(),
+  status: z.enum(['IDEA', 'SCRIPTED', 'REVIEW', 'FAILED']).optional(),
   hook: z.string().optional(),
   script: z.string().optional(),
   caption: z.string().optional(),
   videoUrl: z.string().url().optional(),
+  visuals: z.array(Visual).max(8).optional(),
   scheduledFor: z.string().datetime().nullable().optional(),
 });
 
@@ -40,7 +52,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const content = await db.contentItem.update({
       where: { id },
       data: {
-        ...payload,
+        ...(payload.status ? { status: payload.status } : {}),
+        ...(payload.hook !== undefined ? { hook: payload.hook } : {}),
+        ...(payload.script !== undefined ? { script: payload.script } : {}),
+        ...(payload.caption !== undefined ? { caption: payload.caption } : {}),
+        ...(payload.videoUrl !== undefined ? { videoUrl: payload.videoUrl } : {}),
+        ...(payload.visuals !== undefined ? { visuals: payload.visuals as unknown as Prisma.InputJsonValue } : {}),
         ...(payload.scheduledFor !== undefined
           ? { scheduledFor: payload.scheduledFor ? new Date(payload.scheduledFor) : null }
           : {}),

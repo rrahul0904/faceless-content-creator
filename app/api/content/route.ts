@@ -1,16 +1,28 @@
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
+const Visual = z.object({
+  id: z.string(),
+  sentence: z.string(),
+  query: z.string(),
+  provider: z.enum(['wikimedia', 'search']),
+  imageUrl: z.string().url().optional(),
+  sourceUrl: z.string().url(),
+  attribution: z.string().optional(),
+});
+
 const ContentInput = z.object({
   channelId: z.string().min(1),
   topic: z.string().min(1),
-  sourceUrl: z.string().url().optional(),
+  sourceUrl: z.string().optional(),
   hook: z.string().optional(),
   script: z.string().optional(),
   caption: z.string().optional(),
   statNumber: z.string().optional(),
   statLabel: z.string().optional(),
+  visuals: z.array(Visual).max(8).optional(),
 });
 
 export async function GET(request: Request) {
@@ -24,7 +36,7 @@ export async function GET(request: Request) {
         ...(channelId ? { channelId } : {}),
       },
       orderBy: { createdAt: 'desc' },
-      include: { publications: true },
+      include: { publications: true, channel: true },
       take: 100,
     });
     return Response.json({ ok: true, workspaceId: workspace.id, contents });
@@ -43,9 +55,11 @@ export async function POST(request: Request) {
     const channel = await db.channel.findFirst({ where: { id: payload.channelId, workspaceId: workspace.id } });
     if (!channel) return Response.json({ ok: false, error: 'Channel not found' }, { status: 404 });
 
+    const { visuals, ...contentData } = payload;
     const content = await db.contentItem.create({
       data: {
-        ...payload,
+        ...contentData,
+        visuals: visuals as unknown as Prisma.InputJsonValue | undefined,
         status: payload.script ? 'SCRIPTED' : 'IDEA',
       },
     });

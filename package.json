@@ -16,13 +16,14 @@
     "api-key:create": "node scripts/create-api-key.mjs",
     "render:smoke": "node scripts/smoke-render.mjs",
     "http:smoke": "node scripts/smoke-http.mjs",
+    "product:smoke": "node scripts/smoke-product.mjs",
     "auth:smoke": "node scripts/smoke-auth.mjs",
     "limits:smoke": "node scripts/smoke-limits.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
     "lucide-react": "0.544.0",
-    "next": "16.3.4",
+    "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.1.5"
@@ -32,7 +33,7 @@
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.8",
     "prisma": "6.19.3",
     "typescript": "5.9.2"
   },

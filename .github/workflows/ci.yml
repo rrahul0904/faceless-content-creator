@@ -55,6 +55,8 @@ jobs:
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
+      - name: Exercise Framepilot-class product workflow
+        run: npm run product:smoke
       - name: Exercise plan limits and membership controls
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
