@@ -23,6 +23,7 @@ export default function Home() {
           <p className="muted">Write the script, synthesize the voice, burn animated-ready captions and render a vertical MP4 without sending your video job to a rendering SaaS.</p>
           <div className="ctaRow">
             <a className="button" href="#studio">Create a short</a>
+            <a className="button secondary" href="/visual-story">Animated visuals</a>
             <a className="button secondary" href="#pipeline">How it works</a>
           </div>
         </div>
@@ -39,7 +40,7 @@ export default function Home() {
         <div className="stat"><strong>0</strong><span>Required API keys</span></div>
         <div className="stat"><strong>1</strong><span>Docker command to start</span></div>
         <div className="stat"><strong>9:16</strong><span>Native short-form output</span></div>
-        <div className="stat"><strong>100%</strong><span>Local render ownership</span></div>
+        <div className="stat"><strong>4:5</strong><span>Animated LinkedIn visual studio</span></div>
       </section>
 
       <div id="studio"><Creator /></div>
