@@ -1,0 +1,30 @@
+name: Faceless n8n commercial release gate
+on:
+  pull_request:
+  push:
+    branches: [commercialize/n8n-release-ready]
+permissions:
+  contents: read
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Validate n8n workflow and commercial package
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const w=JSON.parse(fs.readFileSync('workflows/n8n/faceless-content-creator.json','utf8'));
+          if(!Array.isArray(w.nodes)||w.nodes.length===0||!w.connections) process.exit(1);
+          for(const f of ['QUICKSTART.md','DEPENDENCIES.md','TEST_MATRIX.md','SUPPORT.md','PROVENANCE.md','LICENSE_STATUS.md','RELEASE_RECEIPT.md']) {
+            if(!fs.statSync('commercialization/n8n/'+f).size) process.exit(2);
+          }
+          NODE
+          grep -Eq 'Decision: (\*\*)?NO-GO(\*\*)?' commercialization/n8n/RELEASE_RECEIPT.md
