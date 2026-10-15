@@ -21,6 +21,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm ci
+      - name: Verify deployed Creator Console modules
+        run: |
+          node --check creator-console/visual-story.js
+          node --check creator-console/api/visual-story.js
+          node --check creator-console/lib/visual-story.js
+          npm --prefix creator-console test
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
