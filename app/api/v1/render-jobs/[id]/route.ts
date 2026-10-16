@@ -4,15 +4,24 @@ import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-contex
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+type SourceStory = { id: string; version: number } | null;
+
 function jobMetadata(input: unknown) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    return { kind: 'unknown', format: 'mp4', engine: 'local-ffmpeg' };
+    return { kind: 'unknown', format: 'mp4', engine: 'local-ffmpeg', sourceStory: null as SourceStory };
   }
   const record = input as Record<string, unknown>;
   const kind = typeof record.kind === 'string' ? record.kind : 'legacy-local';
   const format = record.output === 'gif' ? 'gif' : 'mp4';
   const engine = kind === 'visual-story-v1' ? 'visual-story-template-v1' : kind === 'template-v1' ? 'template-engine-v1' : 'local-ffmpeg';
-  return { kind, format, engine };
+  let sourceStory: SourceStory = null;
+  if (record.sourceStory && typeof record.sourceStory === 'object' && !Array.isArray(record.sourceStory)) {
+    const source = record.sourceStory as Record<string, unknown>;
+    if (typeof source.id === 'string' && Number.isInteger(source.version) && Number(source.version) > 0) {
+      sourceStory = { id: source.id, version: Number(source.version) };
+    }
+  }
+  return { kind, format, engine, sourceStory };
 }
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -56,6 +65,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         cancellable: !finished,
         kind: metadata.kind,
         engine: metadata.engine,
+        sourceStory: metadata.sourceStory,
         result: job.status === 'SUCCEEDED' && job.videoUrl ? { url: job.videoUrl, format: metadata.format } : null,
       },
     });
