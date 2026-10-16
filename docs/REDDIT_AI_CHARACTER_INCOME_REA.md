@@ -91,15 +91,17 @@ Owned target flow:
 ```text
 CharacterSpec
   -> recurring SeriesPlan
-  -> script / image / video generation
+  -> identity-bound script
+  -> image / video generation
   -> review + policy gate
+  -> owned renderer
   -> scheduled multi-platform publish
   -> publication analytics + revenue/cost events
   -> unit economics
   -> next SeriesPlan
 ```
 
-The current branch implements the CharacterSpec, series planner, monetization offers, revenue/cost events and business dashboard. Existing product modules already cover generation, rendering, social scheduling/publishing and publication analytics.
+The current branch now implements CharacterSpec, series planning, monetization offers, revenue/cost events, business analytics, character-bound script generation and direct handoff into the existing local FFmpeg renderer. Existing product modules continue to own social scheduling/publishing and publication analytics.
 
 ## Clean-room boundary
 
@@ -126,11 +128,21 @@ Adult/uncensored monetization workflows mentioned in the discussion are not part
 - `POST /api/v1/business/revenue`
   - revenue/cost/view/click/conversion ledger
 - `POST /api/v1/business/series-plan`
-  - deterministic seven-to-thirty-day recurring-series plan
+  - deterministic three-to-thirty-day recurring-series plan
+- `POST /api/v1/business/characters/:id/script`
+  - compiles persona, audience, visual identity, recurring bit, platform and optional offer into an episode-writing contract
+  - works with configured LLM providers but retains a zero-key deterministic fallback
 - `components/character-income-engine.tsx`
-  - customer-facing console for the first vertical slice
+  - create/select recurring characters
+  - add monetization lanes
+  - record unit economics
+  - generate a seven-day series
+  - generate an identity-bound episode draft
+  - send the reviewed draft directly to the existing local render queue and retrieve the MP4
+- `scripts/smoke-business.mjs`
+  - acceptance path for character -> offer -> revenue -> series -> character-bound script -> persisted business dashboard
 
-For this first slice, the new state is stored through the existing `Setting` table under a workspace-prefixed key. This keeps the change deployable without a database migration while preserving the workspace isolation contract. Once the contract stabilizes, the data can be normalized into dedicated Prisma models without changing the API surface.
+For this first slice, the new business state is stored through the existing `Setting` table under a workspace-prefixed key. This keeps the change deployable without a database migration while preserving the workspace isolation contract. Once the contract stabilizes, the data can be normalized into dedicated Prisma models without changing the API surface.
 
 ## Acceptance criteria
 
@@ -140,18 +152,20 @@ For this first slice, the new state is stored through the existing `Setting` tab
 4. A user can record revenue, cost, views, clicks and conversions.
 5. The dashboard returns gross profit, RPM and profit/1K views.
 6. A user can generate a recurring seven-day series plan that preserves the character's visual identity and recurring bit.
-7. The series planner does not require external AI keys.
-8. Existing workspace/API-key authorization still gates the new routes.
-9. Existing social publication analytics are visible beside business metrics.
-10. CI lint, typecheck and production build remain green.
+7. A planned episode can be compiled into an identity-bound script without requiring external AI keys.
+8. The reviewed character episode can be handed to the existing owned local render queue and rendered as an MP4.
+9. Existing workspace/API-key authorization still gates the new business routes.
+10. Existing social publication analytics are visible beside business metrics.
+11. CI lint, typecheck, production build and the character-business acceptance smoke remain green.
 
 ## Next implementation slices
 
-### Slice 2: Character-bound generation
+### Slice 2: Character-consistent visual generation
 
-- attach `characterId` to content jobs
-- compile visual identity into image/video prompts
-- add reference-image packs and character consistency scoring
+- attach `characterId` to persisted content jobs
+- compile the visual identity contract into provider-neutral image/video generation requests
+- add reference-image packs
+- add character consistency scoring
 - compare generated frames to reference embeddings before approval
 
 ### Slice 3: Provider fabric
