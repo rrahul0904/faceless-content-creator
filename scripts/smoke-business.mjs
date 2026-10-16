@@ -72,6 +72,19 @@ assert(plan.plan.projectedCostCents === 175, `unexpected projected cost ${plan.p
 assert(plan.plan.episodes.every((episode) => episode.creativeDirection.includes('Same dog')), 'series plan did not preserve visual identity');
 assert(plan.plan.episodes.some((episode) => episode.offerId === offerCreated.offer.id), 'series plan did not include the active offer');
 
+const monetizedEpisode = plan.plan.episodes.find((episode) => episode.offerId === offerCreated.offer.id) ?? plan.plan.episodes[0];
+const script = await request(`/api/v1/business/characters/${encodeURIComponent(characterId)}/script`, {
+  method: 'POST',
+  body: JSON.stringify({
+    episodeDirection: monetizedEpisode.creativeDirection,
+    platform: monetizedEpisode.platform,
+    offerId: monetizedEpisode.offerId,
+  }),
+});
+assert(script.identityContract?.name === created.character.name, 'script response lost the character identity contract');
+assert(script.identityContract?.visualIdentity.includes('Same dog'), 'script response lost visual identity requirements');
+assert(script.result?.script?.includes('Visual identity contract') || script.result?.script?.includes('recurring character'), 'deterministic character script did not receive creative context');
+
 const dashboard = await request('/api/v1/business');
 assert(dashboard.state?.characters?.some((character) => character.id === characterId), 'character is missing from persisted dashboard state');
 assert(dashboard.state?.offers?.some((offer) => offer.id === offerCreated.offer.id), 'offer is missing from persisted dashboard state');
@@ -86,4 +99,5 @@ console.log(JSON.stringify({
   revenueCents: dashboard.metrics.revenueCents,
   grossProfitCents: dashboard.metrics.grossProfitCents,
   plannedEpisodes: plan.plan.episodes.length,
+  scriptTopic: script.result.topic,
 }, null, 2));
