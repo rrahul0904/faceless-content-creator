@@ -37,28 +37,54 @@ type Dashboard = {
   social: { publicationCount: number };
 };
 
+type PlannedEpisode = {
+  day: number;
+  platform: string;
+  pattern: string;
+  workingTitle: string;
+  creativeDirection: string;
+  cta: string;
+  offerId?: string;
+};
+
 type SeriesPlan = {
   days: number;
   projectedCostCents: number;
-  episodes: Array<{
-    day: number;
-    platform: string;
-    pattern: string;
-    workingTitle: string;
-    creativeDirection: string;
-    cta: string;
-  }>;
+  episodes: PlannedEpisode[];
+};
+
+type EpisodeDraft = {
+  topic: string;
+  hook: string;
+  script: string;
+  caption: string;
+};
+
+type RenderJob = {
+  id: string;
+  status: string;
+  finished: boolean;
+  result?: { data?: { content?: string } };
+  error?: unknown;
 };
 
 function money(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function CharacterIncomeEngine() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [selectedId, setSelectedId] = useState('');
   const [plan, setPlan] = useState<SeriesPlan | null>(null);
+  const [episodeDraft, setEpisodeDraft] = useState<EpisodeDraft | null>(null);
+  const [episodeVideoUrl, setEpisodeVideoUrl] = useState('');
+  const [episodeJob, setEpisodeJob] = useState<RenderJob | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState('');
   const [error, setError] = useState('');
 
   const [name, setName] = useState('Leo');
@@ -101,6 +127,12 @@ export function CharacterIncomeEngine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function resetEpisodeOutput() {
+    setEpisodeDraft(null);
+    setEpisodeVideoUrl('');
+    setEpisodeJob(null);
+  }
+
   async function createCharacter(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -125,6 +157,7 @@ export function CharacterIncomeEngine() {
       if (!response.ok) throw new Error(data.error ?? 'Unable to create character');
       setSelectedId(data.character.id);
       setPlan(null);
+      resetEpisodeOutput();
       await refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to create character');
@@ -187,7 +220,9 @@ export function CharacterIncomeEngine() {
   async function generateSeries() {
     if (!selectedId) return;
     setBusy(true);
+    setStage('Planning recurring series');
     setError('');
+    resetEpisodeOutput();
     try {
       const response = await fetch('/api/v1/business/series-plan', {
         method: 'POST',
@@ -201,6 +236,81 @@ export function CharacterIncomeEngine() {
       setError(cause instanceof Error ? cause.message : 'Unable to create series plan');
     } finally {
       setBusy(false);
+      setStage('');
+    }
+  }
+
+  async function generateEpisode(episode: PlannedEpisode) {
+    if (!selectedId) return;
+    setBusy(true);
+    setStage(`Writing day ${episode.day} episode`);
+    setError('');
+    setEpisodeDraft(null);
+    setEpisodeVideoUrl('');
+    setEpisodeJob(null);
+    try {
+      const response = await fetch(`/api/v1/business/characters/${encodeURIComponent(selectedId)}/script`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          episodeDirection: episode.creativeDirection,
+          platform: episode.platform,
+          offerId: episode.offerId,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Unable to generate episode script');
+      setEpisodeDraft(data.result);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to generate episode script');
+    } finally {
+      setBusy(false);
+      setStage('');
+    }
+  }
+
+  async function pollRender(id: string) {
+    for (let attempt = 0; attempt < 180; attempt += 1) {
+      setStage(attempt < 2 ? 'Starting local renderer' : 'Rendering character episode with FFmpeg');
+      await sleep(1500);
+      const response = await fetch(`/api/render/${encodeURIComponent(id)}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Unable to check render status');
+      const current = data.job as RenderJob;
+      setEpisodeJob(current);
+      if (!current.finished) continue;
+      if (current.status !== 'succeeded') throw new Error(`Render ${current.status}`);
+      const renderedUrl = current.result?.data?.content;
+      if (!renderedUrl) throw new Error('Render finished without a video URL');
+      setEpisodeVideoUrl(renderedUrl);
+      return;
+    }
+    throw new Error('Render exceeded the expected polling window');
+  }
+
+  async function renderEpisode() {
+    if (!episodeDraft) return;
+    setBusy(true);
+    setError('');
+    setEpisodeVideoUrl('');
+    setEpisodeJob(null);
+    try {
+      setStage('Queueing character episode render');
+      const response = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...episodeDraft, voice: 'en-us', speechRate: 165, template: 'editorial' }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'Unable to start render');
+      const started = data.job as RenderJob;
+      setEpisodeJob(started);
+      await pollRender(started.id);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to render episode');
+    } finally {
+      setBusy(false);
+      setStage('');
     }
   }
 
@@ -223,6 +333,7 @@ export function CharacterIncomeEngine() {
         </div>
       )}
 
+      {stage && <div className="renderProgress"><span className="dot" />{stage}</div>}
       {error && <div className="errorBox">{error}</div>}
 
       <form className="creatorForm" onSubmit={createCharacter}>
@@ -243,7 +354,7 @@ export function CharacterIncomeEngine() {
           <div className="eyebrow">Owned characters</div>
           <label>
             Active character
-            <select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setPlan(null); }}>
+            <select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setPlan(null); resetEpisodeOutput(); }}>
               {dashboard.state.characters.map((character) => <option key={character.id} value={character.id}>{character.name} · {character.niche}</option>)}
             </select>
           </label>
@@ -288,10 +399,36 @@ export function CharacterIncomeEngine() {
                 <b>{episode.pattern}</b>
                 <small>{episode.creativeDirection}</small>
                 <small>{episode.cta}</small>
+                <button className="button ghost" type="button" onClick={() => generateEpisode(episode)} disabled={busy}>Write episode</button>
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {episodeDraft && (
+        <div className="resultCard">
+          <div className="eyebrow">Character-bound episode draft</div>
+          <h3>{episodeDraft.hook}</h3>
+          <p className="muted">{episodeDraft.script}</p>
+          <p>{episodeDraft.caption}</p>
+          <div className="ctaRow"><button className="button secondary" type="button" onClick={renderEpisode} disabled={busy}>Render episode locally</button></div>
+        </div>
+      )}
+
+      {episodeVideoUrl && (
+        <div className="videoResult">
+          <div><div className="eyebrow">Character episode ready</div><h3>Identity-aware script → owned local renderer → MP4.</h3></div>
+          <video src={episodeVideoUrl} controls playsInline />
+          <div className="ctaRow"><a className="button" href={episodeVideoUrl} download>Download MP4</a></div>
+        </div>
+      )}
+
+      {episodeJob && (
+        <details className="jobBox">
+          <summary>Character episode render {episodeJob.id} · {episodeJob.status}</summary>
+          <pre>{JSON.stringify(episodeJob, null, 2)}</pre>
+        </details>
       )}
     </section>
   );
