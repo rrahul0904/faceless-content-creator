@@ -11,6 +11,7 @@ module.exports=async function(req,res){
   try{
     const storyId=Array.isArray(req.query?.storyId)?req.query.storyId[0]:req.query?.storyId;
     const versionRaw=Array.isArray(req.query?.version)?req.query.version[0]:req.query?.version;
+    const action=Array.isArray(req.query?.action)?req.query.action[0]:req.query?.action;
     if(storyId&&!safeId(storyId))return res.status(400).json({error:'INVALID_STORY_ID'});
     if(versionRaw&&(!/^\d+$/.test(String(versionRaw))||Number(versionRaw)<1))return res.status(400).json({error:'INVALID_VERSION'});
 
@@ -25,6 +26,9 @@ module.exports=async function(req,res){
     }
     if(req.method==='PUT'&&storyId){
       return relay(await fetch(`${base}/api/v1/visual-stories/${encodeURIComponent(storyId)}`,{method:'PUT',headers:headers(),body:JSON.stringify(body)}),res);
+    }
+    if(req.method==='POST'&&storyId&&action==='refine'){
+      return relay(await fetch(`${base}/api/v1/visual-stories/${encodeURIComponent(storyId)}/refine`,{method:'POST',headers:headers(),body:JSON.stringify(body)}),res);
     }
     if(req.method==='POST'&&storyId&&versionRaw){
       return relay(await fetch(`${base}/api/v1/visual-stories/${encodeURIComponent(storyId)}/versions/${encodeURIComponent(versionRaw)}`,{method:'POST',headers:headers(),body:'{}'}),res);
