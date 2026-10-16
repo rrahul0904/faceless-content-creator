@@ -20,7 +20,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const workspaceError = workspaceErrorResponse(error);
     if (workspaceError) return workspaceError;
     const message = error instanceof Error ? error.message : 'Unable to refine visual story';
-    const status = message === 'REFINEMENT_NOT_UNDERSTOOD' ? 422 : 400;
+    const status = message.startsWith('REFINEMENT_') ? 422 : 400;
     return Response.json({ ok: false, error: message }, { status });
   }
 }
