@@ -3,6 +3,7 @@
 function renderPlane(){return String(process.env.VISUAL_RENDER_BASE_URL||'').replace(/\/$/,'');}
 function headers(){const key=String(process.env.VISUAL_RENDER_API_KEY||'').trim();return {'content-type':'application/json',...(key?{authorization:`Bearer ${key}`}:{})};}
 function safeJobId(value){return /^[a-zA-Z0-9_-]{6,128}$/.test(String(value||''));}
+function safeStoryId(value){return /^[a-zA-Z0-9_-]{6,128}$/.test(String(value||''));}
 function absoluteResult(base,data){if(data?.data?.result?.url&&String(data.data.result.url).startsWith('/'))data.data.result.url=base+data.data.result.url;return data;}
 async function relay(response,res,base){const text=await response.text();let data;try{data=text?JSON.parse(text):{};}catch{data={error:'RENDER_PLANE_INVALID_RESPONSE'};}return res.status(response.status).json(absoluteResult(base,data));}
 
@@ -12,8 +13,15 @@ module.exports=async function(req,res){
   try{
     if(req.method==='POST'){
       const body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
-      if(!body.spec||!['gif','mp4'].includes(body.output||'gif'))return res.status(400).json({error:'INVALID_RENDER_REQUEST'});
-      const response=await fetch(`${base}/api/v1/visual-stories/render`,{method:'POST',headers:headers(),body:JSON.stringify({spec:body.spec,output:body.output||'gif'})});
+      const output=body.output||'gif';
+      if(!['gif','mp4'].includes(output))return res.status(400).json({error:'INVALID_RENDER_REQUEST'});
+      if(body.storyId){
+        if(!safeStoryId(body.storyId))return res.status(400).json({error:'INVALID_STORY_ID'});
+        const response=await fetch(`${base}/api/v1/visual-stories/${encodeURIComponent(body.storyId)}/render`,{method:'POST',headers:headers(),body:JSON.stringify({output})});
+        return relay(response,res,base);
+      }
+      if(!body.spec)return res.status(400).json({error:'INVALID_RENDER_REQUEST'});
+      const response=await fetch(`${base}/api/v1/visual-stories/render`,{method:'POST',headers:headers(),body:JSON.stringify({spec:body.spec,output})});
       return relay(response,res,base);
     }
     if(req.method==='GET'){
