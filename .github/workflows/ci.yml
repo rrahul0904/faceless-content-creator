@@ -21,7 +21,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
+      - name: Audit production dependencies
+        id: dependency-audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
       - run: npm run lint
@@ -83,6 +86,11 @@ jobs:
           SMOKE_BASE_URL: http://127.0.0.1:3001
           SMOKE_API_KEY: ${{ env.HOSTED_SMOKE_API_KEY }}
         run: npm run auth:smoke
+      - name: Enforce dependency audit
+        if: steps.dependency-audit.outcome == 'failure'
+        run: |
+          echo "Production dependency audit failed; feature verification completed but merge remains blocked."
+          exit 1
       - name: Show container logs on failure
         if: failure()
         run: |
