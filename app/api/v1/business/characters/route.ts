@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { db } from '@/lib/db';
 import { loadCharacterBusinessState, saveCharacterBusinessState } from '@/lib/character-business';
 import { resolveWorkspace, workspaceErrorResponse } from '@/lib/workspace-context';
 
@@ -34,9 +35,7 @@ export async function POST(request: Request) {
     const payload = CharacterInput.parse(await request.json());
 
     if (payload.channelId) {
-      const channel = await import('@/lib/db').then(({ db }) =>
-        db.channel.findFirst({ where: { id: payload.channelId, workspaceId: workspace.id } }),
-      );
+      const channel = await db.channel.findFirst({ where: { id: payload.channelId, workspaceId: workspace.id } });
       if (!channel) return Response.json({ ok: false, error: 'Channel not found in this workspace' }, { status: 404 });
     }
 
