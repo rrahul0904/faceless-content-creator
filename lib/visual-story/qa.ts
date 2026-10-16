@@ -1,3 +1,4 @@
+import { getTechnicalIcon } from './icons';
 import type { VisualStorySpec } from './schema';
 
 type QaCheck = {
@@ -54,6 +55,11 @@ export function certifyVisualStory(spec: VisualStorySpec): VisualStoryQaReceipt 
   const occupancy = estimatedOccupancy(spec);
   const longestLabel = Math.max(...spec.items.map((item) => item.label.length));
   const longestDetail = Math.max(...spec.items.map((item) => item.detail.length));
+  const iconItems = spec.items.filter((item) => item.iconKey);
+  const resolvedIcons = iconItems.map((item) => getTechnicalIcon(item.iconKey));
+  const unknownIcons = iconItems.filter((_, index) => !resolvedIcons[index]);
+  const officialAssets = resolvedIcons.filter((icon) => icon?.assetInstalled).length;
+  const fallbackAssets = resolvedIcons.filter((icon) => icon && !icon.assetInstalled).length;
   const checks: QaCheck[] = [
     {
       id: 'source-provenance',
@@ -100,6 +106,15 @@ export function certifyVisualStory(spec: VisualStorySpec): VisualStoryQaReceipt 
       pass: ['flow', 'build', 'pulse'].includes(spec.motion),
       value: spec.motion,
       message: 'Motion is tied to a supported semantic pattern.',
+    },
+    {
+      id: 'technical-icon-registry',
+      pass: unknownIcons.length === 0,
+      value: iconItems.length ? `${resolvedIcons.length - unknownIcons.length}/${iconItems.length} known · ${officialAssets} official · ${fallbackAssets} fallback` : 'none',
+      threshold: 'all iconKey values registered',
+      message: unknownIcons.length
+        ? `Unknown technical icon keys: ${unknownIcons.map((item) => item.iconKey).join(', ')}`
+        : 'Technical icon references resolve through the governed registry; fallback mode is explicit when an official asset is not installed.',
     },
   ];
 
