@@ -1,10 +1,13 @@
 import { execFile } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { renderTemplateVideo } from './template-renderer.mjs';
 
 const execFileAsync = promisify(execFile);
+const technicalIconRegistry = JSON.parse(readFileSync(new URL('../creator-console/lib/technical-icons.json', import.meta.url), 'utf8'));
+const technicalIcons = new Map(technicalIconRegistry.icons.map((icon) => [icon.key, icon]));
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -70,6 +73,33 @@ function text(id, content, x, y, width, height, color, fontSize, zIndex, showAt 
   };
 }
 
+function image(id, content, x, y, width, height, zIndex, showAt = 0) {
+  return {
+    ...base(id, x, y, width, height, zIndex, showAt),
+    type: 'image',
+    content,
+    style: {
+      objectFit: 'contain',
+      objectPosition: 'center center',
+      borderRadius: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+      opacity: 1,
+    },
+  };
+}
+
+function iconForItem(item) {
+  if (!item?.iconKey) return null;
+  return technicalIcons.get(item.iconKey) ?? null;
+}
+
+function verifiedIconAsset(icon) {
+  if (!icon?.assetPath) return null;
+  const resolved = path.resolve(process.cwd(), icon.assetPath);
+  return existsSync(resolved) ? resolved : null;
+}
+
 function revealAt(spec, index) {
   if (spec.motion === 'build') return 0.45 + index * 0.45;
   return 0.25;
@@ -77,9 +107,18 @@ function revealAt(spec, index) {
 
 function addCard(elements, spec, item, index, x, y, width, height) {
   const showAt = revealAt(spec, index);
+  const icon = iconForItem(item);
+  const iconAsset = verifiedIconAsset(icon);
   elements.push(shape(`card-${index}`, x, y, width, height, spec.brand.foreground, 0.075, 10, showAt));
-  elements.push(shape(`badge-${index}`, x + 22, y + 22, 56, 38, spec.brand.primary, 1, 12, showAt));
-  elements.push(text(`badge-text-${index}`, String(index + 1).padStart(2, '0'), x + 34, y + 28, 40, 30, '#ffffff', 20, 13, showAt));
+
+  if (iconAsset) {
+    elements.push(image(`icon-${index}`, iconAsset, x + 20, y + 17, 60, 48, 13, showAt));
+  } else {
+    elements.push(shape(`badge-${index}`, x + 22, y + 22, 56, 38, spec.brand.primary, 1, 12, showAt));
+    const badge = icon?.fallbackLabel || String(index + 1).padStart(2, '0');
+    const badgeSize = badge.length > 3 ? 13 : badge.length > 2 ? 16 : 20;
+    elements.push(text(`badge-text-${index}`, badge, x + 28, y + 29, 46, 28, '#ffffff', badgeSize, 13, showAt));
+  }
 
   const valueSpace = item.value ? 150 : 20;
   elements.push(text(
@@ -213,7 +252,7 @@ export function visualStoryToTemplateDocument(spec) {
     undefined,
     500,
   ));
-  elements.push(text('footer-right', 'Creator Console · Visual Story', width - margin - 310, height - 54, 310, 28, '#8792B4', 16, 20, 0.2, undefined, 500));
+  elements.push(text('footer-right', `Creator Console · Visual Story · icons ${technicalIconRegistry.version}`, width - margin - 390, height - 54, 390, 28, '#8792B4', 15, 20, 0.2, undefined, 500));
 
   return {
     schemaVersion: 1,
@@ -259,6 +298,7 @@ export async function renderVisualStory({ jobId, input }) {
       ...rendered,
       engine: 'visual-story-template-v1',
       artifactType: 'mp4',
+      technicalIconRegistry: technicalIconRegistry.version,
     };
   }
 
@@ -286,5 +326,6 @@ export async function renderVisualStory({ jobId, input }) {
     pages: 1,
     width: targetWidth,
     height: targetHeight,
+    technicalIconRegistry: technicalIconRegistry.version,
   };
 }
