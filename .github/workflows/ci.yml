@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
@@ -23,6 +23,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
+      - name: Refresh dependency lock for MCP adapter
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit refreshed MCP dependency lock
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package-lock.json
+            git commit -m 'chore: lock MCP visual-story adapter'
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
       - run: npm ci
       - name: Verify deployed Creator Console modules
         run: |
@@ -32,6 +45,10 @@ jobs:
           node --check creator-console/lib/visual-story.js
           node --check creator-console/lib/visual-story-qa.js
           npm --prefix creator-console test
+      - name: Verify MCP visual-story adapter
+        run: |
+          node --check mcp/visual-story-server.mjs
+          node --input-type=module -e "await import('@modelcontextprotocol/server'); await import('@modelcontextprotocol/server/stdio'); console.error('MCP SDK import PASS')"
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
