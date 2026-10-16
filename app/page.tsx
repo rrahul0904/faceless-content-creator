@@ -1,3 +1,4 @@
+import { CharacterIncomeEngine } from '@/components/character-income-engine';
 import { Creator } from '@/components/creator';
 
 const stages = [
@@ -23,6 +24,7 @@ export default function Home() {
           <p className="muted">Write the script, synthesize the voice, burn animated-ready captions and render a vertical MP4 without sending your video job to a rendering SaaS.</p>
           <div className="ctaRow">
             <a className="button" href="#studio">Create a short</a>
+            <a className="button secondary" href="#character-business">Build a recurring character</a>
             <a className="button secondary" href="#pipeline">How it works</a>
           </div>
         </div>
@@ -43,6 +45,7 @@ export default function Home() {
       </section>
 
       <div id="studio"><Creator /></div>
+      <CharacterIncomeEngine />
 
       <section className="panel" id="pipeline">
         <div className="panelHeader">
