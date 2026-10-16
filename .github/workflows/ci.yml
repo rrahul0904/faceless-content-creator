@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
@@ -23,19 +23,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
-      - name: Refresh dependency lock for patched constraints
-        run: npm install --package-lock-only --ignore-scripts
-      - name: Commit refreshed dependency lock
-        if: github.event_name == 'push'
-        shell: bash
-        run: |
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package-lock.json
-            git commit -m 'chore: refresh audited dependency lock'
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
       - run: npm ci
       - name: Verify deployed Creator Console modules
         run: |
@@ -51,6 +38,8 @@ jobs:
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
+      - name: Render durable VisualStorySpec GIF through worker
+        run: npm run visual-story:smoke
       - name: Build zero-config Docker image
         run: docker build -t faceless-content-creator:ci .
       - name: Boot zero-config Docker image

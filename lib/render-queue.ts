@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { startRenderWorker } from '@/lib/render-worker';
+import type { VisualStoryOutput, VisualStorySpec } from '@/lib/visual-story/schema';
 
 export type LocalTemplate = 'editorial' | 'signal' | 'ember';
 
@@ -49,6 +50,26 @@ export async function createLocalRenderJob(input: LocalRenderInput, contentId?: 
     });
   }
 
+  startRenderWorker(job.id);
+  return job;
+}
+
+export async function createVisualStoryRenderJob(
+  spec: VisualStorySpec,
+  output: VisualStoryOutput,
+  workspaceId?: string,
+  qa?: Prisma.InputJsonValue,
+) {
+  const renderInput: Prisma.InputJsonObject = {
+    kind: 'visual-story-v1',
+    output,
+    spec: JSON.parse(JSON.stringify(spec)) as Prisma.InputJsonObject,
+    ...(qa ? { qa } : {}),
+  };
+
+  const job = await db.renderJob.create({
+    data: { workspaceId, input: renderInput, status: 'QUEUED' },
+  });
   startRenderWorker(job.id);
   return job;
 }

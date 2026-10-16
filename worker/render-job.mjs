@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { renderAIVideo } from './ai-video.mjs';
 import { renderFacelessVideo } from './local-renderer.mjs';
 import { renderTemplateVideo } from './template-renderer.mjs';
+import { renderVisualStory } from './visual-story-renderer.mjs';
 
 const db = new PrismaClient();
 const jobId = process.argv[2];
@@ -71,6 +72,8 @@ try {
         });
       } else if (input.kind === 'ai-video-v1') {
         result = await renderAIVideo({ jobId, input });
+      } else if (input.kind === 'visual-story-v1') {
+        result = await renderVisualStory({ jobId, input });
       } else {
         result = await renderFacelessVideo({
           jobId,
@@ -135,6 +138,7 @@ try {
                 metadata: {
                   kind: String(input.kind ?? 'legacy-local'),
                   engine: String(result.engine ?? 'local-ffmpeg'),
+                  ...(result.artifactType ? { artifactType: String(result.artifactType) } : {}),
                 },
               },
             });

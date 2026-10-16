@@ -5,6 +5,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const ALLOWED = /^[a-zA-Z0-9._-]+$/;
+const MIME_TYPES: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.gif': 'image/gif',
+  '.png': 'image/png',
+};
 
 function parseRange(header: string | null, size: number) {
   if (!header) return null;
@@ -33,7 +38,9 @@ function parseRange(header: string | null, size: number) {
 export async function GET(request: Request, context: { params: Promise<{ filename: string }> }) {
   try {
     const { filename } = await context.params;
-    if (!ALLOWED.test(filename) || !filename.endsWith('.mp4')) {
+    const extension = path.extname(filename).toLowerCase();
+    const contentType = MIME_TYPES[extension];
+    if (!ALLOWED.test(filename) || !contentType) {
       return Response.json({ ok: false, error: 'Invalid asset name' }, { status: 400 });
     }
 
@@ -44,7 +51,7 @@ export async function GET(request: Request, context: { params: Promise<{ filenam
     const bytes = await readFile(filePath);
     const range = parseRange(request.headers.get('range'), bytes.length);
     const baseHeaders = {
-      'Content-Type': 'video/mp4',
+      'Content-Type': contentType,
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'private, max-age=3600',
       'Content-Disposition': `inline; filename="${filename}"`,
