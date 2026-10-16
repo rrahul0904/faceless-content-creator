@@ -29,6 +29,13 @@ export const VisualStoryItemSchema = z.object({
   value: z.string().max(40).optional(),
 });
 
+export const VisualStoryRefinementSchema = z.object({
+  mode: z.literal('deterministic'),
+  instruction: z.string().min(1).max(1000),
+  appliedAt: z.string().min(1),
+  changes: z.array(z.string().min(1).max(120)).min(1).max(20),
+});
+
 export const VisualStorySpecSchema = z.object({
   version: z.literal('1.0'),
   id: z.string().min(1).max(128),
@@ -46,6 +53,7 @@ export const VisualStorySpecSchema = z.object({
     mode: z.enum(['deterministic', 'llm']),
     claimsPolicy: z.literal('source-only'),
     generatedAt: z.string().min(1),
+    refinements: z.array(VisualStoryRefinementSchema).max(20).default([]),
   }),
 });
 
