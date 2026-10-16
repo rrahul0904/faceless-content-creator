@@ -11,6 +11,7 @@ const formatSchema = z.enum(['process', 'roadmap', 'comparison', 'stats', 'archi
 const motionSchema = z.enum(['flow', 'build', 'pulse']);
 const sizeSchema = z.enum(['portrait', 'square', 'landscape']);
 const outputSchema = z.enum(['gif', 'mp4']);
+const storyIdSchema = z.string().min(6).max(128).regex(/^[a-zA-Z0-9_-]+$/);
 
 const brandSchema = z.object({
   name: z.string().min(1).max(80).optional(),
@@ -56,7 +57,7 @@ async function fetchJson(url, init) {
 function createServer() {
   const server = new McpServer({
     name: 'creator-visual-story',
-    version: '1.0.0',
+    version: '1.1.0',
   });
 
   server.registerTool(
@@ -100,21 +101,50 @@ function createServer() {
   );
 
   server.registerTool(
+    'visual_story_refine',
+    {
+      title: 'Refine Saved Visual Story',
+      description: 'Apply a bounded conversational refinement to an existing persisted visual story. The render plane appends an immutable version, retains source provenance and regenerates QA. No publishing occurs.',
+      inputSchema: z.object({
+        storyId: storyIdSchema,
+        instruction: z.string().min(1).max(1000),
+      }),
+    },
+    async ({ storyId, instruction }) => {
+      try {
+        const { response, body } = await fetchJson(`${renderBaseUrl()}/api/v1/visual-stories/${encodeURIComponent(storyId)}/refine`, {
+          method: 'POST',
+          headers: renderHeaders(),
+          body: JSON.stringify({ instruction }),
+        });
+        return result(body, !response.ok);
+      } catch (error) {
+        return result({ error: 'RENDER_PLANE_UNAVAILABLE', message: error instanceof Error ? error.message : String(error) }, true);
+      }
+    },
+  );
+
+  server.registerTool(
     'visual_story_render',
     {
       title: 'Queue Durable Visual Story Render',
-      description: 'Submit a VisualStorySpec to the owned render plane. The render plane re-certifies the spec and returns an asynchronous job handle; this tool does not poll or publish.',
+      description: 'Render either an ad-hoc VisualStorySpec or a persisted story. Persisted-story rendering preserves visualStoryId/version provenance. The render plane re-certifies before queueing; this tool does not publish.',
       inputSchema: z.object({
-        spec: z.record(z.string(), z.unknown()),
+        spec: z.record(z.string(), z.unknown()).optional(),
+        storyId: storyIdSchema.optional(),
         output: outputSchema.default('gif'),
-      }),
+      }).refine(value => Boolean(value.spec) !== Boolean(value.storyId), { message: 'Provide exactly one of spec or storyId.' }),
     },
-    async ({ spec, output }) => {
+    async ({ spec, storyId, output }) => {
       try {
-        const { response, body } = await fetchJson(`${renderBaseUrl()}/api/v1/visual-stories/render`, {
+        const url = storyId
+          ? `${renderBaseUrl()}/api/v1/visual-stories/${encodeURIComponent(storyId)}/render`
+          : `${renderBaseUrl()}/api/v1/visual-stories/render`;
+        const payload = storyId ? { output } : { spec, output };
+        const { response, body } = await fetchJson(url, {
           method: 'POST',
           headers: renderHeaders(),
-          body: JSON.stringify({ spec, output }),
+          body: JSON.stringify(payload),
         });
         return result(body, !response.ok);
       } catch (error) {
@@ -127,7 +157,7 @@ function createServer() {
     'visual_story_render_status',
     {
       title: 'Get Visual Story Render Status',
-      description: 'Read the durable state of a visual-story render job and return its artifact URL when complete.',
+      description: 'Read the durable state of a visual-story render job and return its artifact URL plus persisted story/version provenance when complete.',
       inputSchema: z.object({ jobId: z.string().min(6).max(128).regex(/^[a-zA-Z0-9_-]+$/) }),
     },
     async ({ jobId }) => {
