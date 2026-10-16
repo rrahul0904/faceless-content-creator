@@ -76,6 +76,10 @@ jobs:
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
         run: npm run visual-story:persistence-smoke
+      - name: Exercise conversational visual-story refinement
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:refine-smoke
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
       - name: Exercise plan limits and membership controls
