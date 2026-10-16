@@ -27,6 +27,7 @@ export const VisualStoryItemSchema = z.object({
   label: z.string().min(1).max(120),
   detail: z.string().max(280).default(''),
   value: z.string().max(40).optional(),
+  iconKey: z.string().trim().min(1).max(120).optional(),
 });
 
 export const VisualStoryRefinementSchema = z.object({
