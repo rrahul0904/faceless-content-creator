@@ -10,7 +10,7 @@ const spec = {
   version: '1.0',
   id: 'ci-visual-story',
   title: 'RAG systems need a retrieval contract',
-  subtitle: 'A durable visual-story render exercises our owned spec, template engine and FFmpeg worker.',
+  subtitle: 'A durable visual-story render exercises our owned spec, governed icons, template engine and FFmpeg worker.',
   format: 'architecture',
   motion: 'flow',
   size: 'portrait',
@@ -25,10 +25,10 @@ const spec = {
     foreground: '#F7F8FC',
   },
   items: [
-    { id: 'item-1', label: 'Ingest documents', detail: 'Capture source material and provenance.' },
-    { id: 'item-2', label: 'Chunk and embed', detail: 'Create retrievable semantic units.' },
-    { id: 'item-3', label: 'Retrieve context', detail: 'Select evidence for the current request.' },
-    { id: 'item-4', label: 'Generate grounded answer', detail: 'Keep claims connected to retrieved evidence.' },
+    { id: 'item-1', label: 'Ingest documents', detail: 'Capture source material and provenance.', iconKey: 'aws:s3' },
+    { id: 'item-2', label: 'Chunk and embed', detail: 'Create retrievable semantic units.', iconKey: 'generic:vector-store' },
+    { id: 'item-3', label: 'Retrieve context', detail: 'Select evidence for the current request.', iconKey: 'generic:database' },
+    { id: 'item-4', label: 'Generate grounded answer', detail: 'Keep claims connected to retrieved evidence.', iconKey: 'generic:model' },
   ],
   sourcePrompt: 'RAG pipeline: ingest -> chunk -> embed -> retrieve -> answer',
   provenance: {
@@ -73,6 +73,7 @@ try {
     outputFile: completed.outputFile,
     artifactUrl: completed.videoUrl,
     bytes: file.size,
+    technicalIcons: spec.items.map(({ id, iconKey }) => ({ id, iconKey })),
   }));
 } finally {
   await db.$disconnect();
