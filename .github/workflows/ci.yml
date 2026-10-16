@@ -28,7 +28,9 @@ jobs:
         run: |
           node --check creator-console/visual-story.js
           node --check creator-console/api/visual-story.js
+          node --check creator-console/api/visual-story-render.js
           node --check creator-console/lib/visual-story.js
+          node --check creator-console/lib/visual-story-qa.js
           npm --prefix creator-console test
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate

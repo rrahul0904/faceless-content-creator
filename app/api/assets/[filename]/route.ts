@@ -53,6 +53,7 @@ export async function GET(request: Request, context: { params: Promise<{ filenam
     const baseHeaders = {
       'Content-Type': contentType,
       'Accept-Ranges': 'bytes',
+      'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'private, max-age=3600',
       'Content-Disposition': `inline; filename="${filename}"`,
     };
