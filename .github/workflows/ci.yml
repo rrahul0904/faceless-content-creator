@@ -31,8 +31,11 @@ jobs:
           node --check creator-console/api/visual-story.js
           node --check creator-console/api/visual-story-render.js
           node --check creator-console/api/visual-story-storage.js
+          node --check creator-console/api/visual-story-icons.js
           node --check creator-console/lib/visual-story.js
           node --check creator-console/lib/visual-story-qa.js
+          node --check creator-console/lib/technical-icons.js
+          node -e "const icons=require('./creator-console/lib/technical-icons'); const s3=icons.resolveTechnicalIcon('Amazon S3'); const dbx=icons.resolveTechnicalIcon('Databricks'); if(s3?.key!=='aws:s3'||s3.assetMode!=='fallback'||dbx?.kind!=='brand-mark') process.exit(1); console.error('Technical icon registry PASS', icons.registryVersion)"
           npm --prefix creator-console test
       - name: Verify MCP visual-story adapter
         run: |
@@ -72,6 +75,10 @@ jobs:
           test -n "$SMOKE_API_KEY"
           echo "::add-mask::$SMOKE_API_KEY"
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
+      - name: Exercise governed technical icon registry
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:icons-smoke
       - name: Exercise visual-story persistence and immutable versions
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
