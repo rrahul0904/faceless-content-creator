@@ -18,6 +18,7 @@
     "visual-story:smoke": "node scripts/smoke-visual-story-render.mjs",
     "visual-story:persistence-smoke": "node scripts/smoke-visual-story-persistence.mjs",
     "visual-story:refine-smoke": "node scripts/smoke-visual-story-refine.mjs",
+    "visual-story:icons-smoke": "node scripts/smoke-technical-icons.mjs",
     "mcp:visual-story": "node mcp/visual-story-server.mjs",
     "http:smoke": "node scripts/smoke-http.mjs",
     "auth:smoke": "node scripts/smoke-auth.mjs",
