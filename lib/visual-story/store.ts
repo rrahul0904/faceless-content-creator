@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { certifyVisualStory } from './qa';
+import { refineVisualStory as applyVisualStoryRefinement } from './refine';
 import { VisualStorySpecSchema, type VisualStorySpec } from './schema';
 
 function asJson(value: unknown): Prisma.InputJsonValue {
@@ -95,6 +96,23 @@ export async function updateVisualStory(id: string, input: { name?: string; spec
   });
 
   return { ...serializeRecord(updated), version, qa };
+}
+
+export async function refineVisualStory(id: string, instruction: string, workspaceId: string) {
+  const current = await getVisualStory(id, workspaceId);
+  if (!current) return null;
+  const refinement = applyVisualStoryRefinement(current.spec, instruction);
+  const updated = await updateVisualStory(id, { name: refinement.spec.title, spec: refinement.spec }, workspaceId);
+  if (!updated) return null;
+  return {
+    ...updated,
+    refinement: {
+      instruction: refinement.instruction,
+      changes: refinement.changes,
+      parentVersion: current.currentVersion,
+      version: updated.currentVersion,
+    },
+  };
 }
 
 export async function deleteVisualStory(id: string, workspaceId: string) {
