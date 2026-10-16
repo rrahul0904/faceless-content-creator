@@ -7,6 +7,10 @@ function headers(extra = {}) {
   return { Authorization: `Bearer ${smokeApiKey}`, ...extra };
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function request(pathname, init = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, {
     ...init,
@@ -32,7 +36,7 @@ async function expectStatus(pathname, status, init = {}) {
   return result;
 }
 
-const before = await json('/api/v1/limits');
+let before = await json('/api/v1/limits');
 if (before.data?.plan !== 'FREE') throw new Error(`Unexpected test plan: ${JSON.stringify(before)}`);
 if (before.data?.monthly?.renderJobs?.limit !== 2 || before.data?.monthly?.renderJobs?.used < 2) {
   throw new Error(`Render quota override or usage accounting is wrong: ${JSON.stringify(before.data?.monthly?.renderJobs)}`);
@@ -41,8 +45,16 @@ if (before.data?.monthly?.storageMb?.limit !== 1 || before.data?.monthly?.storag
   throw new Error(`Storage quota override or upload accounting is wrong: ${JSON.stringify(before.data?.monthly?.storageMb)}`);
 }
 if (before.data?.members?.limit !== 1) throw new Error(`Membership limit override was not applied: ${JSON.stringify(before.data?.members)}`);
-if (before.data?.rate?.limit !== 7 || before.data?.rate?.used < 5) {
-  throw new Error(`Metered rate override or accounting is wrong: ${JSON.stringify(before.data?.rate)}`);
+if (before.data?.rate?.limit !== 7 || before.data?.rate?.used !== 0) {
+  throw new Error(`Rate-limit test fixture was not reset: ${JSON.stringify(before.data?.rate)}`);
+}
+
+// Avoid a minute-boundary race after the fixture reset. A new bucket naturally starts at zero.
+const resetAtMs = Date.parse(before.data.rate.resetsAt);
+if (Number.isFinite(resetAtMs) && resetAtMs - Date.now() < 3000) {
+  await sleep(Math.max(0, resetAtMs - Date.now()) + 150);
+  before = await json('/api/v1/limits');
+  if (before.data?.rate?.used !== 0) throw new Error(`Fresh rate bucket was not empty: ${JSON.stringify(before.data?.rate)}`);
 }
 
 const member = await json('/api/v1/memberships', {
@@ -83,6 +95,7 @@ if (!String(lastOwnerDelete.body?.error ?? '').includes('retain at least one own
   throw new Error(`Last-owner deletion did not fail closed: ${JSON.stringify(lastOwnerDelete.body)}`);
 }
 
+// This over-quota storage request consumes rate slot 1 while proving storage quota enforcement.
 const oversizedForm = new FormData();
 oversizedForm.append('file', new Blob([new Uint8Array(2 * 1024 * 1024)], { type: 'video/mp4' }), 'quota-test.mp4');
 const storageRejected = await expectStatus('/api/media', 429, { method: 'POST', body: oversizedForm });
@@ -100,22 +113,32 @@ const renderRequest = {
   body: JSON.stringify({ modifications: {}, response: { format: 'mp4', mode: 'async' } }),
 };
 
+// Rate slot 2: monthly render quota must win before the per-minute rate limit.
 const quotaRejected = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
 if (quotaRejected.body?.code !== 'quota_exceeded' || quotaRejected.body?.limit?.resource !== 'RENDER_JOB') {
   throw new Error(`Monthly render quota rejection was not certified: ${JSON.stringify(quotaRejected.body)}`);
 }
 if (!quotaRejected.response.headers.get('retry-after')) throw new Error('Render quota response did not include Retry-After');
 
+// Explicitly drive rate slots 3-7. Each is still expected to fail on monthly quota.
+for (let slot = 3; slot <= 7; slot += 1) {
+  const result = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
+  if (result.body?.code !== 'quota_exceeded' || result.body?.limit?.resource !== 'RENDER_JOB') {
+    throw new Error(`Rate slot ${slot} did not preserve monthly quota precedence: ${JSON.stringify(result.body)}`);
+  }
+}
+
+// Rate slot 8 crosses the configured per-minute limit of 7.
 const rateRejected = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
 if (rateRejected.body?.code !== 'metered_rate_limited') {
-  throw new Error(`Rate-limit rejection was not certified: ${JSON.stringify(rateRejected.body)}`);
+  throw new Error(`Rate-limit rejection was not certified at slot 8: ${JSON.stringify(rateRejected.body)}`);
 }
 if (!rateRejected.response.headers.get('retry-after')) throw new Error('Rate-limit response did not include Retry-After');
 
 const after = await json('/api/v1/limits');
 if (
   after.data?.members?.used !== 1 ||
-  after.data?.rate?.used < 8 ||
+  after.data?.rate?.used !== 8 ||
   after.data?.monthly?.renderJobs?.used < 2 ||
   after.data?.monthly?.storageMb?.used <= 0
 ) {
@@ -136,6 +159,6 @@ console.log(JSON.stringify({
     'membership-cap',
     'last-owner-guard',
     'monthly-render-quota',
-    'metered-rate-limit',
+    'metered-rate-limit-exact-threshold',
   ],
 }));
