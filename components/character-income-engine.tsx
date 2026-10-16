@@ -118,13 +118,27 @@ export function CharacterIncomeEngine() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error ?? 'Unable to load business dashboard');
     setDashboard(data);
-    if (!selectedId && data.state.characters[0]) setSelectedId(data.state.characters[0].id);
+    setSelectedId((current) => current || data.state.characters[0]?.id || '');
   }
 
   useEffect(() => {
-    refresh().catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load business dashboard'));
-    // selectedId is intentionally not a dependency; refresh should not loop when selection changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+
+    void fetch('/api/v1/business', { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error ?? 'Unable to load business dashboard');
+        if (cancelled) return;
+        setDashboard(data);
+        setSelectedId((current) => current || data.state.characters[0]?.id || '');
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : 'Unable to load business dashboard');
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function resetEpisodeOutput() {
