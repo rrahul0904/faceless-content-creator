@@ -22,6 +22,7 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/worker ./worker
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/creator-console/lib ./creator-console/lib
 RUN mkdir -p /app/data/renders /app/data/work
 VOLUME ["/app/data"]
 EXPOSE 3000
