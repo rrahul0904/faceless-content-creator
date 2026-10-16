@@ -1,3 +1,4 @@
+import { resolveTechnicalIcon } from './icons';
 import { VisualStorySpecSchema, type VisualStorySpec } from './schema';
 
 const FORMATS = ['process', 'roadmap', 'comparison', 'stats', 'architecture', 'listicle'] as const;
@@ -18,16 +19,22 @@ function parseHex(instruction: string, label: string) {
 }
 
 function titleInstruction(instruction: string) {
-  const explicit = instruction.match(/(?:^|[.;]\s*)(?:title|headline)\s*[:=]\s*["“]?([^"”\n]+)["”]?/i);
+  const explicit = instruction.match(/(?:^|[.;]\s*)(?:title|headline)\s*[:=]\s*["“]?([^"”;\n]+)["”]?/i);
   if (explicit?.[1]) return clean(explicit[1], 160);
-  const rename = instruction.match(/\b(?:rename|retitle)(?:\s+(?:this|it))?\s+to\s+["“]?([^"”\n]+)["”]?/i);
+  const rename = instruction.match(/\b(?:rename|retitle)(?:\s+(?:this|it))?\s+to\s+["“]?([^"”;\n]+)["”]?/i);
   return rename?.[1] ? clean(rename[1], 160) : null;
 }
 
 function compactText(value: string, max: number) {
-  const text = clean(value, max);
+  const text = value.replace(/\s+/g, ' ').trim();
   if (text.length <= max) return text;
   return `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+}
+
+function refinementError(message: string) {
+  const error = new Error(message);
+  (error as Error & { status?: number }).status = 422;
+  return error;
 }
 
 export function refineVisualStory(input: VisualStorySpec, rawInstruction: string) {
@@ -85,6 +92,27 @@ export function refineVisualStory(input: VisualStorySpec, rawInstruction: string
     }
   }
 
+  const removeIcon = instruction.match(/\b(?:remove|clear)\s+(?:the\s+)?icon\s+(?:for\s+)?(?:item|step|card)\s+(\d+)\b/i);
+  if (removeIcon?.[1]) {
+    const index = Number(removeIcon[1]) - 1;
+    if (index >= 0 && index < next.items.length && next.items[index].iconKey) {
+      delete next.items[index].iconKey;
+      changes.push(`icon:${index + 1}:removed`);
+    }
+  }
+
+  const iconAssignment = instruction.match(/\b(?:set\s+)?icon\s+(?:for\s+)?(?:item|step|card)\s+(\d+)\s*(?:to|:|=)\s*([^;\n]+)/i);
+  if (iconAssignment?.[1] && iconAssignment?.[2]) {
+    const index = Number(iconAssignment[1]) - 1;
+    if (index < 0 || index >= next.items.length) throw refinementError('REFINEMENT_ICON_ITEM_OUT_OF_RANGE');
+    const icon = resolveTechnicalIcon(clean(iconAssignment[2], 120));
+    if (!icon) throw refinementError('REFINEMENT_UNKNOWN_TECHNICAL_ICON');
+    if (next.items[index].iconKey !== icon.key) {
+      next.items[index].iconKey = icon.key;
+      changes.push(`icon:${index + 1}:${icon.key}`);
+    }
+  }
+
   const removeItem = instruction.match(/\bremove\s+(?:item|step|card)\s+(\d+)\b/i);
   if (removeItem?.[1] && next.items.length > 1) {
     const index = Number(removeItem[1]) - 1;
@@ -129,11 +157,7 @@ export function refineVisualStory(input: VisualStorySpec, rawInstruction: string
     changes.push('concise-copy');
   }
 
-  if (!changes.length) {
-    const error = new Error('REFINEMENT_NOT_UNDERSTOOD');
-    (error as Error & { status?: number }).status = 422;
-    throw error;
-  }
+  if (!changes.length) throw refinementError('REFINEMENT_NOT_UNDERSTOOD');
 
   const refinements = [...(next.provenance.refinements ?? []), {
     mode: 'deterministic' as const,
