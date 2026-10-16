@@ -6,6 +6,7 @@ import * as z from 'zod/v4';
 const require = createRequire(import.meta.url);
 const { planVisualStory } = require('../creator-console/lib/visual-story');
 const { certifyVisualStory } = require('../creator-console/lib/visual-story-qa');
+const { registryVersion, verifiedAt, searchTechnicalIcons } = require('../creator-console/lib/technical-icons');
 
 const formatSchema = z.enum(['process', 'roadmap', 'comparison', 'stats', 'architecture', 'listicle']);
 const motionSchema = z.enum(['flow', 'build', 'pulse']);
@@ -57,7 +58,7 @@ async function fetchJson(url, init) {
 function createServer() {
   const server = new McpServer({
     name: 'creator-visual-story',
-    version: '1.1.0',
+    version: '1.2.0',
   });
 
   server.registerTool(
@@ -101,10 +102,27 @@ function createServer() {
   );
 
   server.registerTool(
+    'visual_story_icon_search',
+    {
+      title: 'Search Governed Technical Icons',
+      description: 'Search the local governed technical-icon registry. Results include official source, usage class and whether an official asset is installed or the renderer will use an explicit neutral fallback. This tool makes no network request.',
+      inputSchema: z.object({
+        query: z.string().max(160).default(''),
+        provider: z.string().max(40).default(''),
+        limit: z.number().int().min(1).max(100).default(25),
+      }),
+    },
+    async ({ query, provider, limit }) => result({
+      registry: { version: registryVersion, verifiedAt },
+      data: searchTechnicalIcons(query, provider).slice(0, limit),
+    }),
+  );
+
+  server.registerTool(
     'visual_story_refine',
     {
       title: 'Refine Saved Visual Story',
-      description: 'Apply a bounded conversational refinement to an existing persisted visual story. The render plane appends an immutable version, retains source provenance and regenerates QA. No publishing occurs.',
+      description: 'Apply a bounded conversational refinement to an existing persisted visual story. The render plane appends an immutable version, retains source provenance and regenerates QA. Registered technical icons can be assigned with instructions such as icon item 1: aws:s3. No publishing occurs.',
       inputSchema: z.object({
         storyId: storyIdSchema,
         instruction: z.string().min(1).max(1000),
