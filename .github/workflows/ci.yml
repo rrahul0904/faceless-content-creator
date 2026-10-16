@@ -27,8 +27,10 @@ jobs:
       - name: Verify deployed Creator Console modules
         run: |
           node --check creator-console/visual-story.js
+          node --check creator-console/visual-story-persistence.js
           node --check creator-console/api/visual-story.js
           node --check creator-console/api/visual-story-render.js
+          node --check creator-console/api/visual-story-storage.js
           node --check creator-console/lib/visual-story.js
           node --check creator-console/lib/visual-story-qa.js
           npm --prefix creator-console test
@@ -70,6 +72,10 @@ jobs:
           test -n "$SMOKE_API_KEY"
           echo "::add-mask::$SMOKE_API_KEY"
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
+      - name: Exercise visual-story persistence and immutable versions
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:persistence-smoke
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
       - name: Exercise plan limits and membership controls

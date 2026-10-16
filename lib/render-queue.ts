@@ -59,12 +59,14 @@ export async function createVisualStoryRenderJob(
   output: VisualStoryOutput,
   workspaceId?: string,
   qa?: Prisma.InputJsonValue,
+  sourceStory?: { id: string; version: number },
 ) {
   const renderInput: Prisma.InputJsonObject = {
     kind: 'visual-story-v1',
     output,
     spec: JSON.parse(JSON.stringify(spec)) as Prisma.InputJsonObject,
     ...(qa ? { qa } : {}),
+    ...(sourceStory ? { sourceStory: { id: sourceStory.id, version: sourceStory.version } } : {}),
   };
 
   const job = await db.renderJob.create({
