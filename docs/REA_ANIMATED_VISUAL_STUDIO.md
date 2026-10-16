@@ -6,7 +6,7 @@ Canonical branch: `feature/animated-visual-studio`
 
 ## 1. Target identity
 
-This work absorbs the public product pattern behind prompt-driven animated LinkedIn visuals into the owned Creator Console. The target capability is not treated as a code clone. The external product is a capability reference; the implementation remains inside our own planning, template, render and publishing control planes.
+This work absorbs the public product pattern behind prompt-driven animated LinkedIn visuals into the owned Creator Console. The target capability is not treated as a code clone. The external product is a capability reference; the implementation remains inside our own planning, versioning, template, render and publishing control planes.
 
 Publicly observed capability pattern:
 
@@ -51,10 +51,11 @@ Not used:
 - canvas size
 - brand tokens
 - 1-8 source-grounded visual items
-- source prompt and provenance
+- original source prompt and provenance
+- append-only refinement provenance
 - source-only claims policy
 
-The browser preview, durable render worker and MCP adapter all consume the same contract.
+The browser preview, persisted version store, durable render worker and MCP adapter all consume the same contract.
 
 ## 4. Current architecture
 
@@ -66,16 +67,22 @@ Creator Console planner
 VisualStorySpec
         ↓
 visual QA receipt
-  ├─ provenance
-  ├─ density
-  ├─ contrast
-  ├─ occupancy
-  ├─ copy budgets
-  └─ semantic motion
         ↓
 editable browser artboard
         ↓
-re-certification after edits
+Save project / Save version
+        ↓
+workspace-owned VisualStory
+        ↓
+append-only VisualStoryVersion
+        ↓
+conversational refine instruction
+  ├─ bounded deterministic transform
+  ├─ original sourcePrompt retained
+  ├─ refinement provenance appended
+  └─ QA regenerated
+        ↓
+new immutable version
         ↓
 Vercel control-plane proxy
         ↓
@@ -89,7 +96,7 @@ FFmpeg worker
   ├─ MP4
   └─ server-side GIF
         ↓
-artifact URL + render receipt
+artifact URL + visualStoryId/version receipt
 ```
 
 The render plane deliberately reuses the repository's existing cancellable render jobs, template compiler, usage accounting and FFmpeg worker. It is not a second renderer or queue.
@@ -103,58 +110,70 @@ The `/visual-story` Studio supports:
 - flow, build and pulse motion
 - brand name, handle and color controls
 - editable headline and visual items
+- persisted project creation
+- immutable `Save version` flow
+- conversational `Refine + save version`
 - PNG export
 - browser-native animation fallback
-- JSON spec export
+- JSON spec/export receipt
 - visible QA receipt
-- `Durable GIF` action that queues the owned render plane when connected
+- `Durable GIF` through the owned render plane
 
-Edits invalidate the browser QA receipt. Durable rendering always re-certifies the submitted spec on the render plane and returns HTTP 422 when visual QA fails.
+Manual edits invalidate the browser QA receipt. Before a durable render, dirty browser edits are persisted as a new version first; the render plane then re-certifies that persisted version. This prevents a rendered artifact from silently pointing at an older saved spec.
 
-## 6. Durable render API
+Current bounded refinement language supports:
 
-`POST /api/v1/visual-stories/render`
+- title/headline changes
+- format changes
+- motion changes
+- portrait/square/landscape canvas changes
+- primary/accent/background/text hex colors
+- concise/reduce-copy requests
+- labels-only / remove details
+- remove numbered item
+- `add item: Label | Detail | Value`
 
-Input:
+Unsupported instructions fail with `REFINEMENT_NOT_UNDERSTOOD` rather than silently inventing a transformation.
 
-```json
-{
-  "spec": "VisualStorySpec",
-  "output": "gif | mp4"
-}
-```
+## 6. Persistence and durable render API
 
-Behavior:
+Persistence endpoints:
 
-1. resolve workspace/auth boundary
-2. validate spec
-3. run blocking visual QA
-4. enforce render quota
-5. enqueue `kind=visual-story-v1`
-6. use the existing worker lifecycle and cancellation semantics
-7. compile the visual story to the owned template document
-8. render MP4 through FFmpeg
-9. optionally transcode the certified MP4 to GIF with palette generation
-10. persist the artifact URL and usage receipt
+- `GET/POST /api/v1/visual-stories`
+- `GET/PUT/DELETE /api/v1/visual-stories/:id`
+- `GET /api/v1/visual-stories/:id/versions`
+- `GET/POST /api/v1/visual-stories/:id/versions/:version`
+- `POST /api/v1/visual-stories/:id/refine`
 
-`GET /api/v1/render-jobs/:id` reports the job kind, engine and result format.
+Restore is non-destructive: restoring an older version creates a new current version rather than mutating history.
+
+Durable render endpoints:
+
+- `POST /api/v1/visual-stories/render` for an ad-hoc spec
+- `POST /api/v1/visual-stories/:id/render` for a persisted story
+- `GET /api/v1/render-jobs/:id` for job/artifact status
+
+Persisted rendering re-loads the current saved spec, runs blocking QA, enforces quota, queues `kind=visual-story-v1`, and records `visualStoryId + version` in the render input/receipt.
 
 ## 7. MCP / Agent Work OS adapter
 
-The current MCP v2 adapter uses `@modelcontextprotocol/server` and exposes four bounded tools over stdio:
+The MCP v2 adapter uses `@modelcontextprotocol/server` and exposes five bounded tools over stdio:
 
 - `visual_story_plan`
 - `visual_story_certify`
+- `visual_story_refine`
 - `visual_story_render`
 - `visual_story_render_status`
 
-Planning/certification are separate from rendering so an agent can inspect or edit a spec before consuming render capacity. The adapter does not publish content, mutate unrelated repository state, merge code or bypass approval gates.
+`visual_story_refine` only operates on a persisted story and appends an immutable version. `visual_story_render` accepts exactly one of an ad-hoc spec or a persisted story ID; using a persisted story preserves version provenance in the render receipt.
 
-This keeps ownership clear:
+The adapter does not publish content, mutate unrelated repository state, merge code or bypass approval gates.
+
+Ownership remains clear:
 
 - REA discovers and structures evidence
-- Creator Console owns visual planning and content production
-- the render plane owns durable media execution
+- Creator Console owns visual planning, editing and versioned creative state
+- the render plane owns durable media execution and receipts
 - Agent Work OS orchestrates through MCP
 - publishing remains a separate approval-gated capability
 
@@ -173,9 +192,15 @@ The candidate has independent checks for:
 - real legacy MP4 render
 - real `VisualStorySpec` GIF render with GIF signature and minimum-artifact check
 - Docker build and boot
+- authenticated immutable-version acceptance
+- authenticated conversational-refinement acceptance
 - API acceptance smoke
 - plan/quota controls
 - fail-closed hosted authentication
+
+Persistence acceptance proves create v1 → edit v2 → retrieve unchanged v1 → restore v1 as new v3.
+
+Refinement acceptance proves a conversational instruction creates a new version, applies the requested title/format/motion changes, retains the original source prompt, appends refinement provenance, regenerates QA, and leaves v1 unchanged.
 
 The dependency baseline was also repaired: Next.js and transitive vulnerable packages were updated and the regenerated lockfile is committed, so the audit gate is reproducible rather than bypassed.
 
@@ -188,11 +213,11 @@ Vercel
   Creator Console UI + lightweight proxy
         │
         └──> Container host
-              Next.js render API
-              SQLite or hosted DB
+              Next.js visual-story/render API
+              persistent DB/data
               FFmpeg / eSpeak / fonts
               durable RenderJob workers
-              persistent /app/data volume
+              immutable visual-story versions
 ```
 
 Current external gates discovered during this roadmap pass:
@@ -204,27 +229,26 @@ These are hosting/account gates, not product-code blockers. No billing or plan c
 
 ## 10. Next owned slices
 
-After a live container host is available, continue in this order:
+After this versioning/refinement milestone, continue in this order:
 
-1. connect `VISUAL_RENDER_BASE_URL` and least-privilege service authentication from Creator Console
-2. browser certify the live Durable GIF path and retain exact deployment/SHA receipts
-3. persist visual-story versions/assets
-4. conversational refine/restyle over `VisualStorySpec`
-5. exact cloud/vendor icon registry for technical architecture content
-6. carousel / multi-artboard output
-7. approval-gated LinkedIn publishing from the rendered artifact
-8. engagement analytics → creative feedback loop
-9. replay/drift comparison and self-healing visual-template checks
-10. cross-product adapters for REA, Traceframe and Presentation OS using the same visual contract
+1. connect `VISUAL_RENDER_BASE_URL` and least-privilege service authentication on a live container host
+2. browser-certify save/refine/render against exact deployment/SHA receipts
+3. exact cloud/vendor icon registry for technical architecture content
+4. carousel / multi-artboard output from the same visual story
+5. approval-gated LinkedIn publishing from a certified rendered artifact
+6. engagement analytics → creative feedback loop
+7. replay/drift comparison and self-healing visual-template checks
+8. cross-product adapters for REA, Traceframe and Presentation OS using the same visual contract
 
 ## 11. Product differentiation
 
 The goal is broader than a clone:
 
 - source/evidence provenance is first-class
+- refinement is versioned rather than destructive
 - one spec can drive browser preview, PNG, durable GIF, MP4, carousel, documentation diagram and presentation artifacts
 - motion is semantic and QA-gated rather than decorative
 - REA can produce visual stories directly from reverse-engineering evidence
-- Agent Work OS can plan, certify, render, verify and replay via bounded tools
-- the render path produces durable receipts instead of claiming an artifact that was never actually generated
+- Agent Work OS can plan, certify, refine, render, verify and replay via bounded tools
+- the render path produces durable receipts tied to a persisted story version
 - approval and exact-SHA shipping gates remain part of the product architecture
