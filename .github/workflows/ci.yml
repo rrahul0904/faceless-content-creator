@@ -28,10 +28,12 @@ jobs:
         run: |
           node --check creator-console/visual-story.js
           node --check creator-console/visual-story-persistence.js
+          node --check creator-console/visual-story-carousel.js
           node --check creator-console/api/visual-story.js
           node --check creator-console/api/visual-story-render.js
           node --check creator-console/api/visual-story-storage.js
           node --check creator-console/api/visual-story-icons.js
+          node --check creator-console/api/visual-story-carousel.js
           node --check creator-console/lib/visual-story.js
           node --check creator-console/lib/visual-story-qa.js
           node --check creator-console/lib/technical-icons.js
