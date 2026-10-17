@@ -1,0 +1,37 @@
+name: Project Signal CI
+
+on:
+  push:
+    branches:
+      - research/worthwatch-project-signal-intelligence
+    paths:
+      - 'lib/project-signal/**'
+      - 'tests/project-signal.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/project-signal-ci.yml'
+  pull_request:
+    paths:
+      - 'lib/project-signal/**'
+      - 'tests/project-signal.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/project-signal-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-project-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck repository contracts
+        run: npm run typecheck
+      - name: Run deterministic Project Signal tests
+        run: npm run test:project-signal

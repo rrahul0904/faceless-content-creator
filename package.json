@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:project-signal": "node --experimental-strip-types --test tests/project-signal.test.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "api-key:create": "node scripts/create-api-key.mjs",
