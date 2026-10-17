@@ -1,0 +1,92 @@
+{
+  "version": "2026-10-16.1",
+  "verifiedAt": "2026-10-16",
+  "sources": {
+    "aws": {
+      "provider": "AWS",
+      "officialUrl": "https://aws.amazon.com/architecture/icons/",
+      "kind": "architecture-pack",
+      "usageClass": "architecture-icon",
+      "assetPolicy": "official-pack-only",
+      "notes": "Use current AWS-approved architecture assets for diagrams and related technical materials. Do not substitute an old third-party pack when an official current asset is available."
+    },
+    "azure": {
+      "provider": "Microsoft Azure",
+      "officialUrl": "https://learn.microsoft.com/en-us/azure/architecture/icons/",
+      "kind": "architecture-pack",
+      "usageClass": "architecture-icon",
+      "assetPolicy": "official-pack-only",
+      "notes": "Microsoft permits these icons for architecture diagrams, training materials, and documentation. Do not crop, flip, rotate, distort, or use a Microsoft product icon to represent this product."
+    },
+    "gcp": {
+      "provider": "Google Cloud",
+      "officialUrl": "https://cloud.google.com/icons",
+      "kind": "architecture-pack",
+      "usageClass": "architecture-icon",
+      "assetPolicy": "official-pack-only",
+      "notes": "Use the current Google Cloud product-icon library for diagrams and technical documentation; avoid implying endorsement or imitating Google visual identity outside the permitted context."
+    },
+    "snowflake": {
+      "provider": "Snowflake",
+      "officialUrl": "https://www.snowflake.com/data-cloud-partner-immersion/",
+      "kind": "brand-guidance",
+      "usageClass": "brand-mark",
+      "assetPolicy": "official-brand-asset-only",
+      "notes": "Treat the Snowflake mark as a protected brand mark, not a generic architecture glyph. Do not alter the logo; use an owned neutral fallback unless an authorized official asset is installed."
+    },
+    "databricks": {
+      "provider": "Databricks",
+      "officialUrl": "https://brand.databricks.com/databricks-brand-guidelines/welcome",
+      "kind": "brand-guidance",
+      "usageClass": "brand-mark",
+      "assetPolicy": "official-brand-asset-only",
+      "notes": "Databricks guidance says not to edit, distort, recolor, or reconfigure the logo. Use an owned neutral fallback unless the official asset is installed."
+    },
+    "generic": {
+      "provider": "Owned generic",
+      "officialUrl": null,
+      "kind": "owned",
+      "usageClass": "owned-generic",
+      "assetPolicy": "owned",
+      "notes": "Provider-neutral glyphs owned by Creator Console. These never masquerade as a vendor product icon."
+    }
+  },
+  "icons": [
+    {"key":"aws:s3","provider":"aws","product":"Amazon S3","kind":"architecture-icon","aliases":["s3","amazon s3","aws s3","simple storage service"],"fallbackLabel":"S3","assetPath":null},
+    {"key":"aws:lambda","provider":"aws","product":"AWS Lambda","kind":"architecture-icon","aliases":["lambda","aws lambda","serverless function"],"fallbackLabel":"λ","assetPath":null},
+    {"key":"aws:redshift","provider":"aws","product":"Amazon Redshift","kind":"architecture-icon","aliases":["redshift","amazon redshift","aws redshift"],"fallbackLabel":"RS","assetPath":null},
+    {"key":"aws:glue","provider":"aws","product":"AWS Glue","kind":"architecture-icon","aliases":["glue","aws glue"],"fallbackLabel":"GL","assetPath":null},
+    {"key":"aws:kinesis","provider":"aws","product":"Amazon Kinesis","kind":"architecture-icon","aliases":["kinesis","amazon kinesis","aws kinesis"],"fallbackLabel":"KIN","assetPath":null},
+    {"key":"aws:bedrock","provider":"aws","product":"Amazon Bedrock","kind":"architecture-icon","aliases":["bedrock","amazon bedrock","aws bedrock"],"fallbackLabel":"BR","assetPath":null},
+    {"key":"aws:sagemaker","provider":"aws","product":"Amazon SageMaker","kind":"architecture-icon","aliases":["sagemaker","amazon sagemaker","aws sagemaker"],"fallbackLabel":"SM","assetPath":null},
+    {"key":"aws:rds","provider":"aws","product":"Amazon RDS","kind":"architecture-icon","aliases":["rds","amazon rds","relational database service"],"fallbackLabel":"RDS","assetPath":null},
+    {"key":"aws:dynamodb","provider":"aws","product":"Amazon DynamoDB","kind":"architecture-icon","aliases":["dynamodb","dynamo db","amazon dynamodb"],"fallbackLabel":"DDB","assetPath":null},
+    {"key":"aws:eks","provider":"aws","product":"Amazon EKS","kind":"architecture-icon","aliases":["eks","amazon eks","elastic kubernetes service"],"fallbackLabel":"EKS","assetPath":null},
+    {"key":"azure:blob-storage","provider":"azure","product":"Azure Blob Storage","kind":"architecture-icon","aliases":["azure blob","blob storage","azure blob storage"],"fallbackLabel":"BLOB","assetPath":null},
+    {"key":"azure:data-factory","provider":"azure","product":"Azure Data Factory","kind":"architecture-icon","aliases":["adf","data factory","azure data factory"],"fallbackLabel":"ADF","assetPath":null},
+    {"key":"azure:fabric","provider":"azure","product":"Microsoft Fabric","kind":"architecture-icon","aliases":["fabric","microsoft fabric","azure fabric"],"fallbackLabel":"FAB","assetPath":null},
+    {"key":"azure:synapse","provider":"azure","product":"Azure Synapse Analytics","kind":"architecture-icon","aliases":["synapse","azure synapse","synapse analytics"],"fallbackLabel":"SYN","assetPath":null},
+    {"key":"azure:event-hubs","provider":"azure","product":"Azure Event Hubs","kind":"architecture-icon","aliases":["event hubs","eventhub","azure event hubs"],"fallbackLabel":"EH","assetPath":null},
+    {"key":"azure:functions","provider":"azure","product":"Azure Functions","kind":"architecture-icon","aliases":["azure functions","function app","functions"],"fallbackLabel":"FX","assetPath":null},
+    {"key":"azure:openai","provider":"azure","product":"Azure OpenAI","kind":"architecture-icon","aliases":["azure openai","azure ai openai"],"fallbackLabel":"AOAI","assetPath":null},
+    {"key":"azure:aks","provider":"azure","product":"Azure Kubernetes Service","kind":"architecture-icon","aliases":["aks","azure kubernetes service","azure kubernetes"],"fallbackLabel":"AKS","assetPath":null},
+    {"key":"gcp:cloud-storage","provider":"gcp","product":"Cloud Storage","kind":"architecture-icon","aliases":["gcs","google cloud storage","cloud storage"],"fallbackLabel":"GCS","assetPath":null},
+    {"key":"gcp:bigquery","provider":"gcp","product":"BigQuery","kind":"architecture-icon","aliases":["bigquery","big query","google bigquery"],"fallbackLabel":"BQ","assetPath":null},
+    {"key":"gcp:dataflow","provider":"gcp","product":"Dataflow","kind":"architecture-icon","aliases":["dataflow","google dataflow","gcp dataflow"],"fallbackLabel":"DF","assetPath":null},
+    {"key":"gcp:pubsub","provider":"gcp","product":"Pub/Sub","kind":"architecture-icon","aliases":["pubsub","pub/sub","google pubsub","gcp pubsub"],"fallbackLabel":"P/S","assetPath":null},
+    {"key":"gcp:vertex-ai","provider":"gcp","product":"Vertex AI","kind":"architecture-icon","aliases":["vertex","vertex ai","google vertex ai"],"fallbackLabel":"VAI","assetPath":null},
+    {"key":"gcp:cloud-run","provider":"gcp","product":"Cloud Run","kind":"architecture-icon","aliases":["cloud run","google cloud run","gcp cloud run"],"fallbackLabel":"RUN","assetPath":null},
+    {"key":"gcp:gke","provider":"gcp","product":"Google Kubernetes Engine","kind":"architecture-icon","aliases":["gke","google kubernetes engine","google kubernetes"],"fallbackLabel":"GKE","assetPath":null},
+    {"key":"snowflake:snowflake","provider":"snowflake","product":"Snowflake","kind":"brand-mark","aliases":["snowflake","snowflake data cloud"],"fallbackLabel":"SNOW","assetPath":null},
+    {"key":"databricks:databricks","provider":"databricks","product":"Databricks","kind":"brand-mark","aliases":["databricks","data bricks"],"fallbackLabel":"DBX","assetPath":null},
+    {"key":"generic:database","provider":"generic","product":"Database","kind":"owned-generic","aliases":["database","db","relational database"],"fallbackLabel":"DB","assetPath":null},
+    {"key":"generic:object-storage","provider":"generic","product":"Object Storage","kind":"owned-generic","aliases":["object storage","data lake","storage"],"fallbackLabel":"OBJ","assetPath":null},
+    {"key":"generic:stream","provider":"generic","product":"Event Stream","kind":"owned-generic","aliases":["stream","event stream","streaming"],"fallbackLabel":"STR","assetPath":null},
+    {"key":"generic:queue","provider":"generic","product":"Queue","kind":"owned-generic","aliases":["queue","message queue"],"fallbackLabel":"Q","assetPath":null},
+    {"key":"generic:api","provider":"generic","product":"API","kind":"owned-generic","aliases":["api","rest api","service api"],"fallbackLabel":"API","assetPath":null},
+    {"key":"generic:model","provider":"generic","product":"AI Model","kind":"owned-generic","aliases":["ai model","llm","model"],"fallbackLabel":"AI","assetPath":null},
+    {"key":"generic:vector-store","provider":"generic","product":"Vector Store","kind":"owned-generic","aliases":["vector store","vector database","vector db"],"fallbackLabel":"VEC","assetPath":null},
+    {"key":"generic:bi","provider":"generic","product":"Business Intelligence","kind":"owned-generic","aliases":["bi","business intelligence","dashboard"],"fallbackLabel":"BI","assetPath":null},
+    {"key":"generic:governance","provider":"generic","product":"Governance","kind":"owned-generic","aliases":["governance","catalog","policy"],"fallbackLabel":"GOV","assetPath":null}
+  ]
+}

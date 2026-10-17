@@ -4,8 +4,11 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -21,6 +24,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm ci
+      - name: Verify deployed Creator Console modules
+        run: |
+          node --check creator-console/visual-story.js
+          node --check creator-console/visual-story-persistence.js
+          node --check creator-console/visual-story-carousel.js
+          node --check creator-console/api/visual-story.js
+          node --check creator-console/lib/visual-story.js
+          node --check creator-console/lib/visual-story-qa.js
+          node --check creator-console/lib/technical-icons.js
+          node -e "const icons=require('./creator-console/lib/technical-icons'); const s3=icons.resolveTechnicalIcon('Amazon S3'); const dbx=icons.resolveTechnicalIcon('Databricks'); if(s3?.key!=='aws:s3'||s3.assetMode!=='fallback'||dbx?.kind!=='brand-mark') process.exit(1); console.error('Technical icon registry PASS', icons.registryVersion)"
+          npm --prefix creator-console test
+      - name: Verify MCP visual-story adapter
+        run: |
+          node --check mcp/visual-story-server.mjs
+          node --input-type=module -e "await import('@modelcontextprotocol/server'); await import('@modelcontextprotocol/server/stdio'); console.error('MCP SDK import PASS')"
       - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
@@ -29,6 +47,8 @@ jobs:
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
+      - name: Render durable VisualStorySpec GIF through worker
+        run: npm run visual-story:smoke
       - name: Build zero-config Docker image
         run: docker build -t faceless-content-creator:ci .
       - name: Boot zero-config Docker image
@@ -53,8 +73,26 @@ jobs:
           test -n "$SMOKE_API_KEY"
           echo "::add-mask::$SMOKE_API_KEY"
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
+      - name: Exercise governed technical icon registry
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:icons-smoke
+      - name: Exercise visual-story persistence and immutable versions
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:persistence-smoke
+      - name: Exercise conversational visual-story refinement
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:refine-smoke
+      - name: Exercise deterministic visual-story carousel compilation
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:carousel-smoke
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
+      - name: Reset CI rate bucket for deterministic limit acceptance
+        run: docker exec faceless-ci node scripts/reset-rate-limit.mjs --workspace local
       - name: Exercise plan limits and membership controls
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}

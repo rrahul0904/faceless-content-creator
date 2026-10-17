@@ -79,6 +79,7 @@ model Workspace {
   updatedAt           DateTime             @updatedAt
   channels            Channel[]
   templates           Template[]
+  visualStories       VisualStory[]
   brandAssets         BrandAsset[]
   social              SocialAccount[]
   renderJobs          RenderJob[]
@@ -235,6 +236,34 @@ model TemplateVersion {
 
   @@unique([templateId, version])
   @@index([templateId, createdAt])
+}
+
+model VisualStory {
+  id             String               @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name           String
+  spec           Json
+  qa             Json?
+  currentVersion Int                  @default(1)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  versions       VisualStoryVersion[]
+
+  @@index([workspaceId, updatedAt])
+}
+
+model VisualStoryVersion {
+  id            String      @id @default(cuid())
+  visualStoryId String
+  visualStory   VisualStory @relation(fields: [visualStoryId], references: [id], onDelete: Cascade)
+  version       Int
+  spec          Json
+  qa            Json?
+  createdAt     DateTime    @default(now())
+
+  @@unique([visualStoryId, version])
+  @@index([visualStoryId, createdAt])
 }
 
 model BrandAsset {
