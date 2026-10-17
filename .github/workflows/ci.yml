@@ -26,6 +26,7 @@ jobs:
       - run: mkdir -p data/renders data/work && npm run db:push
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run test:project-signal
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
