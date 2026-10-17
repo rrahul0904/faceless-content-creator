@@ -19,6 +19,7 @@
     "visual-story:persistence-smoke": "node scripts/smoke-visual-story-persistence.mjs",
     "visual-story:refine-smoke": "node scripts/smoke-visual-story-refine.mjs",
     "visual-story:icons-smoke": "node scripts/smoke-technical-icons.mjs",
+    "visual-story:carousel-smoke": "node scripts/smoke-visual-story-carousel.mjs",
     "mcp:visual-story": "node mcp/visual-story-server.mjs",
     "http:smoke": "node scripts/smoke-http.mjs",
     "auth:smoke": "node scripts/smoke-auth.mjs",

@@ -87,6 +87,10 @@ jobs:
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
         run: npm run visual-story:refine-smoke
+      - name: Exercise deterministic visual-story carousel compilation
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: npm run visual-story:carousel-smoke
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
       - name: Reset CI rate bucket for deterministic limit acceptance
