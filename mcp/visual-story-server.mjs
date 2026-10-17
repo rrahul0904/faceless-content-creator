@@ -58,7 +58,7 @@ async function fetchJson(url, init) {
 function createServer() {
   const server = new McpServer({
     name: 'creator-visual-story',
-    version: '1.2.0',
+    version: '1.3.0',
   });
 
   server.registerTool(
@@ -134,6 +134,35 @@ function createServer() {
           method: 'POST',
           headers: renderHeaders(),
           body: JSON.stringify({ instruction }),
+        });
+        return result(body, !response.ok);
+      } catch (error) {
+        return result({ error: 'RENDER_PLANE_UNAVAILABLE', message: error instanceof Error ? error.message : String(error) }, true);
+      }
+    },
+  );
+
+  server.registerTool(
+    'visual_story_carousel',
+    {
+      title: 'Compile Visual Story Carousel',
+      description: 'Compile an ad-hoc VisualStorySpec or persisted visual story into deterministic 1080x1350 carousel artboards. Every slide is independently QA-certified and persisted stories retain exact story/version provenance. No publishing occurs.',
+      inputSchema: z.object({
+        spec: z.record(z.string(), z.unknown()).optional(),
+        storyId: storyIdSchema.optional(),
+        itemsPerSlide: z.number().int().min(1).max(4).default(2),
+      }).refine(value => Boolean(value.spec) !== Boolean(value.storyId), { message: 'Provide exactly one of spec or storyId.' }),
+    },
+    async ({ spec, storyId, itemsPerSlide }) => {
+      try {
+        const url = storyId
+          ? `${renderBaseUrl()}/api/v1/visual-stories/${encodeURIComponent(storyId)}/carousel`
+          : `${renderBaseUrl()}/api/v1/visual-stories/carousel`;
+        const payload = storyId ? { itemsPerSlide } : { spec, itemsPerSlide };
+        const { response, body } = await fetchJson(url, {
+          method: 'POST',
+          headers: renderHeaders(),
+          body: JSON.stringify(payload),
         });
         return result(body, !response.ok);
       } catch (error) {
