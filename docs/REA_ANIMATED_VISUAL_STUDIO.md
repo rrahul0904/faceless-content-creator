@@ -51,11 +51,12 @@ Not used:
 - canvas size
 - brand tokens
 - 1-8 source-grounded visual items
+- governed technical icon keys
 - original source prompt and provenance
 - append-only refinement provenance
 - source-only claims policy
 
-The browser preview, persisted version store, durable render worker and MCP adapter all consume the same contract.
+The browser preview, persisted version store, durable render worker, carousel compiler and MCP adapter all consume the same contract.
 
 ## 4. Current architecture
 
@@ -77,29 +78,17 @@ workspace-owned VisualStory
 append-only VisualStoryVersion
         ↓
 conversational refine instruction
-  ├─ bounded deterministic transform
-  ├─ original sourcePrompt retained
-  ├─ refinement provenance appended
-  └─ QA regenerated
         ↓
 new immutable version
-        ↓
-Vercel control-plane proxy
-        ↓
-container render plane
-        ↓
-existing durable RenderJob queue
-        ↓
-TemplateDocument compiler
-        ↓
-FFmpeg worker
-  ├─ MP4
-  └─ server-side GIF
-        ↓
-artifact URL + visualStoryId/version receipt
+        ├──> durable GIF / MP4 render
+        └──> deterministic carousel compiler
+              ├─ portrait artboards
+              ├─ stable item ordering
+              ├─ per-slide QA receipt
+              └─ source story/version provenance
 ```
 
-The render plane deliberately reuses the repository's existing cancellable render jobs, template compiler, usage accounting and FFmpeg worker. It is not a second renderer or queue.
+The render plane deliberately reuses the repository's existing cancellable render jobs, template compiler, usage accounting and FFmpeg worker. Carousel compilation does not introduce a second source content model; it derives slide specs from the same saved `VisualStorySpec`.
 
 ## 5. Creator Console surface
 
@@ -110,6 +99,7 @@ The `/visual-story` Studio supports:
 - flow, build and pulse motion
 - brand name, handle and color controls
 - editable headline and visual items
+- governed technical icon keys with explicit fallback behavior
 - persisted project creation
 - immutable `Save version` flow
 - conversational `Refine + save version`
@@ -121,21 +111,7 @@ The `/visual-story` Studio supports:
 
 Manual edits invalidate the browser QA receipt. Before a durable render, dirty browser edits are persisted as a new version first; the render plane then re-certifies that persisted version. This prevents a rendered artifact from silently pointing at an older saved spec.
 
-Current bounded refinement language supports:
-
-- title/headline changes
-- format changes
-- motion changes
-- portrait/square/landscape canvas changes
-- primary/accent/background/text hex colors
-- concise/reduce-copy requests
-- labels-only / remove details
-- remove numbered item
-- `add item: Label | Detail | Value`
-
-Unsupported instructions fail with `REFINEMENT_NOT_UNDERSTOOD` rather than silently inventing a transformation.
-
-## 6. Persistence and durable render API
+## 6. Persistence, refinement, icons and carousel APIs
 
 Persistence endpoints:
 
@@ -147,6 +123,17 @@ Persistence endpoints:
 
 Restore is non-destructive: restoring an older version creates a new current version rather than mutating history.
 
+Governed icon endpoint:
+
+- `GET /api/v1/visual-story-icons`
+
+Carousel endpoints:
+
+- `POST /api/v1/visual-stories/carousel` for an ad-hoc spec
+- `POST /api/v1/visual-stories/:id/carousel` for the current persisted version
+
+The carousel compiler groups the original story items deterministically, preserves item order/content, normalizes each artboard to 1080×1350 portrait, runs the existing visual QA on every slide, and returns the persisted `visualStoryId + version` when compiled from a saved project. It fails closed with the blocked slide receipts if any artboard does not pass QA.
+
 Durable render endpoints:
 
 - `POST /api/v1/visual-stories/render` for an ad-hoc spec
@@ -157,22 +144,13 @@ Persisted rendering re-loads the current saved spec, runs blocking QA, enforces 
 
 ## 7. MCP / Agent Work OS adapter
 
-The MCP v2 adapter uses `@modelcontextprotocol/server` and exposes five bounded tools over stdio:
-
-- `visual_story_plan`
-- `visual_story_certify`
-- `visual_story_refine`
-- `visual_story_render`
-- `visual_story_render_status`
-
-`visual_story_refine` only operates on a persisted story and appends an immutable version. `visual_story_render` accepts exactly one of an ad-hoc spec or a persisted story ID; using a persisted story preserves version provenance in the render receipt.
-
-The adapter does not publish content, mutate unrelated repository state, merge code or bypass approval gates.
+The MCP v2 adapter uses `@modelcontextprotocol/server` and exposes bounded tools over stdio for planning, QA certification, governed icon discovery, refinement, durable rendering and render status. Publishing remains outside this capability and approval-gated.
 
 Ownership remains clear:
 
 - REA discovers and structures evidence
 - Creator Console owns visual planning, editing and versioned creative state
+- the carousel compiler derives multi-artboard output from the same visual contract
 - the render plane owns durable media execution and receipts
 - Agent Work OS orchestrates through MCP
 - publishing remains a separate approval-gated capability
@@ -188,21 +166,19 @@ The candidate has independent checks for:
 - Next.js production build
 - Creator Console JavaScript syntax
 - Creator Console planner + QA tests
+- governed technical-icon registry certification
 - MCP SDK/module availability
 - real legacy MP4 render
 - real `VisualStorySpec` GIF render with GIF signature and minimum-artifact check
 - Docker build and boot
 - authenticated immutable-version acceptance
 - authenticated conversational-refinement acceptance
+- authenticated carousel compilation acceptance
 - API acceptance smoke
 - plan/quota controls
 - fail-closed hosted authentication
 
-Persistence acceptance proves create v1 → edit v2 → retrieve unchanged v1 → restore v1 as new v3.
-
-Refinement acceptance proves a conversational instruction creates a new version, applies the requested title/format/motion changes, retains the original source prompt, appends refinement provenance, regenerates QA, and leaves v1 unchanged.
-
-The dependency baseline was also repaired: Next.js and transitive vulnerable packages were updated and the regenerated lockfile is committed, so the audit gate is reproducible rather than bypassed.
+Carousel acceptance proves a five-item source story compiles into three portrait artboards at two items per slide, every slide passes QA, item order/content is unchanged, and persisted compilation returns exact story/version provenance.
 
 ## 9. Deployment topology and current external gates
 
@@ -229,12 +205,12 @@ These are hosting/account gates, not product-code blockers. No billing or plan c
 
 ## 10. Next owned slices
 
-After this versioning/refinement milestone, continue in this order:
+Continue in this order:
 
 1. connect `VISUAL_RENDER_BASE_URL` and least-privilege service authentication on a live container host
 2. browser-certify save/refine/render against exact deployment/SHA receipts
-3. exact cloud/vendor icon registry for technical architecture content
-4. carousel / multi-artboard output from the same visual story
+3. Creator Console carousel preview/export UI backed by the certified compiler
+4. MCP carousel tool over the same compiler
 5. approval-gated LinkedIn publishing from a certified rendered artifact
 6. engagement analytics → creative feedback loop
 7. replay/drift comparison and self-healing visual-template checks
@@ -246,7 +222,9 @@ The goal is broader than a clone:
 
 - source/evidence provenance is first-class
 - refinement is versioned rather than destructive
+- technical icons are governed rather than arbitrary image URLs
 - one spec can drive browser preview, PNG, durable GIF, MP4, carousel, documentation diagram and presentation artifacts
+- carousel compilation is deterministic and QA-gated per artboard
 - motion is semantic and QA-gated rather than decorative
 - REA can produce visual stories directly from reverse-engineering evidence
 - Agent Work OS can plan, certify, refine, render, verify and replay via bounded tools
