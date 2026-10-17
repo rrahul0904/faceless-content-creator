@@ -9,8 +9,11 @@ type QaCheck = {
   message: string;
 };
 
+export type VisualStoryQaProfile = 'standard' | 'carousel-focus';
+
 export type VisualStoryQaReceipt = {
   version: '1.0';
+  profile: VisualStoryQaProfile;
   status: 'PASS' | 'FAIL';
   score: number;
   checks: QaCheck[];
@@ -50,9 +53,15 @@ function estimatedOccupancy(spec: VisualStorySpec) {
   return used / spec.height;
 }
 
-export function certifyVisualStory(spec: VisualStorySpec): VisualStoryQaReceipt {
+export function certifyVisualStory(
+  spec: VisualStorySpec,
+  options: { profile?: VisualStoryQaProfile } = {},
+): VisualStoryQaReceipt {
+  const profile = options.profile ?? 'standard';
   const contrast = contrastRatio(spec.brand.foreground, spec.brand.background);
   const occupancy = estimatedOccupancy(spec);
+  const occupancyFloor = profile === 'carousel-focus' ? 0.38 : 0.72;
+  const occupancyCeiling = profile === 'carousel-focus' ? 0.92 : 0.96;
   const longestLabel = Math.max(...spec.items.map((item) => item.label.length));
   const longestDetail = Math.max(...spec.items.map((item) => item.detail.length));
   const iconItems = spec.items.filter((item) => item.iconKey);
@@ -82,10 +91,12 @@ export function certifyVisualStory(spec: VisualStorySpec): VisualStoryQaReceipt 
     },
     {
       id: 'occupancy',
-      pass: occupancy >= 0.72 && occupancy <= 0.96,
+      pass: occupancy >= occupancyFloor && occupancy <= occupancyCeiling,
       value: Number(occupancy.toFixed(3)),
-      threshold: '0.72-0.96',
-      message: 'Estimated vertical occupancy avoids both dead zones and overcrowding.',
+      threshold: `${occupancyFloor}-${occupancyCeiling}`,
+      message: profile === 'carousel-focus'
+        ? 'Carousel focus composition permits intentional whitespace while rejecting an effectively empty artboard.'
+        : 'Estimated vertical occupancy avoids both dead zones and overcrowding.',
     },
     {
       id: 'label-length',
@@ -121,6 +132,7 @@ export function certifyVisualStory(spec: VisualStorySpec): VisualStoryQaReceipt 
   const passed = checks.filter((check) => check.pass).length;
   return {
     version: '1.0',
+    profile,
     status: passed === checks.length ? 'PASS' : 'FAIL',
     score: Math.round((passed / checks.length) * 100),
     checks,

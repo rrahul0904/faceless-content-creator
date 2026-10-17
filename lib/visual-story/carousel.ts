@@ -60,7 +60,7 @@ export function compileVisualStoryCarousel(
       itemStart,
       itemEnd,
       spec,
-      qa: certifyVisualStory(spec),
+      qa: certifyVisualStory(spec, { profile: 'carousel-focus' }),
     };
   });
 
