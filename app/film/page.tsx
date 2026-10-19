@@ -41,6 +41,9 @@ function sceneSeconds(scenes: Scene[], index: number) {
 
 export default function AgentFilmPage() {
   const [source, setSource] = useState(initial);
+  const [idea, setIdea] = useState('Explain how an autonomous agent builds and checks a video');
+  const [niche, setNiche] = useState('AI tools');
+  const [selectedLayer, setSelectedLayer] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [selected, setSelected] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -59,6 +62,62 @@ export default function AgentFilmPage() {
   const scene = scenes[selected] ?? scenes[0];
   const totalDuration = scenes.reduce((total, item) => total + (Number(item.duration) || 0), 0);
   const ratio = plan?.format === 'landscape' ? '16 / 9' : plan?.format === 'square' ? '1' : '9 / 16';
+
+  async function draftFromIdea() {
+    setBusy(true); setMessage('Drafting script from the configured content service…');
+    setResult(null); setVideoUrl('');
+    try {
+      const response = await fetch('/api/script', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea, niche }),
+      });
+      const body = await response.json() as { ok: boolean; error?: string; result?: { hook: string; script: string; topic: string } };
+      if (!response.ok || !body.result) throw new Error(body.error || 'Script service failed');
+      const sentences = (body.result.script.match(/[^.!?]+[.!?]?/g) ?? []).map((line) => line.trim()).filter(Boolean);
+      const beats = [body.result.hook, ...sentences].filter(Boolean).slice(0, 8);
+      const freshPlan: Plan = {
+        name: body.result.topic.slice(0, 120) || 'New video', format: 'portrait',
+        scenes: beats.map((beat, index) => {
+          const words = beat.split(/\s+/).length;
+          const duration = Math.min(25, Math.max(4, Math.ceil(words / 2.5) + 2));
+          return {
+            id: 'beat_' + (index + 1), name: index === 0 ? 'Hook' : 'Beat ' + index,
+            duration, background: index % 2 ? '#14233A' : '#101820', narration: beat.slice(0, 2000),
+            layers: [
+              { id: 'accent_' + index, type: 'shape', fill: '#D7FF64',
+                start: 0, end: duration, bounds: { x: 0.09, y: 0.22, width: 0.2, height: 0.016 } },
+              { id: 'copy_' + index, type: 'text', text: beat.slice(0, 4000), color: '#FFFFFF',
+                fontSize: 68, start: 0, end: duration,
+                bounds: { x: 0.09, y: 0.32, width: 0.82, height: 0.46 } },
+            ],
+          };
+        }),
+      };
+      if (!freshPlan.scenes.length) throw new Error('Script service returned no storyboard beats');
+      setSource(JSON.stringify(freshPlan, null, 2));
+      setSelected(0); setSelectedLayer('');
+      setMessage('Draft ready. Select any scene or text layer to refine it, then validate.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to draft video');
+    } finally { setBusy(false); }
+  }
+
+  function changeLayer(property: 'text' | 'color' | 'fill' | 'start' | 'end', value: string | number) {
+    try {
+      const next = JSON.parse(source) as Plan;
+      const chosen = next.scenes?.[selected]?.layers?.find((item) => item.id === selectedLayer);
+      if (!chosen) return;
+      if (property === 'text') chosen.text = String(value);
+      if (property === 'color') chosen.color = String(value);
+      if (property === 'fill') chosen.fill = String(value);
+      if (property === 'start') chosen.start = Number(value);
+      if (property === 'end') chosen.end = Number(value);
+      setSource(JSON.stringify(next, null, 2));
+      setResult(null);
+    } catch { setMessage('Fix JSON syntax before editing in the inspector.'); }
+  }
+
+  const currentLayer = scene?.layers?.find((item) => item.id === selectedLayer);
 
   async function submit(mode: 'validate' | 'save' | 'render') {
     setBusy(true); setResult(null); setVideoUrl('');
@@ -108,6 +167,12 @@ export default function AgentFilmPage() {
       <div className="filmEditor">
         <div className="filmSectionHeader"><h2>Storyboard specification</h2><span>JSON · v1</span></div>
         <p className="filmHint">Your coding agent can produce this plan. Edit the scenes and layer properties here, validate it, then save it as a versioned template.</p>
+        <div className="filmPrompt">
+          <label>Topic or instruction<input value={idea} maxLength={500} onChange={(event) => setIdea(event.target.value)} /></label>
+          <label>Content niche<input value={niche} maxLength={120} onChange={(event) => setNiche(event.target.value)} /></label>
+          <button disabled={busy || !idea.trim()} onClick={() => void draftFromIdea()}>Draft storyboard from idea</button>
+          <small>Uses the existing content service: configured LLM if available, otherwise a local deterministic draft. Review generated claims before publishing.</small>
+        </div>
         <textarea aria-label="FilmPlan JSON storyboard" spellCheck={false} value={source} onChange={(event) => { setSource(event.target.value); setResult(null); }} />
         <details><summary>Hosted workspace credentials</summary><label className="filmAuth">Workspace API key (optional in local mode)<input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label></details>
         <div className="filmButtons">
@@ -122,7 +187,7 @@ export default function AgentFilmPage() {
       <div className="filmPreview">
         <div className="filmSectionHeader"><h2>Visual storyboard</h2><span>{totalDuration.toFixed(1)} sec</span></div>
         <div className="filmScenePicker" aria-label="Choose scene">
-          {scenes.map((item, index) => <button key={item.id + index} onClick={() => setSelected(index)} className={selected === index ? 'selected' : ''}>
+          {scenes.map((item, index) => <button key={item.id + index} onClick={() => { setSelected(index); setSelectedLayer(''); }} className={selected === index ? 'selected' : ''}>
             <small>{sceneSeconds(scenes, index).toFixed(1)}s</small>
             <strong>{item.name || item.id}</strong>
             <small>{item.duration}s</small>
@@ -137,11 +202,20 @@ export default function AgentFilmPage() {
               width: (layer.bounds.width * 100) + '%', height: (layer.bounds.height * 100) + '%',
               display: 'flex', overflow: 'hidden',
             };
-            if (layer.type === 'shape') return <div key={layer.id + index} style={{ ...style, background: layer.fill || '#D7FF64' }} />;
-            if (layer.type === 'text') return <div key={layer.id + index} style={{ ...style, whiteSpace: 'pre-line', color: layer.color || '#FFFFFF', fontSize: 'clamp(8px, ' + ((layer.fontSize || 74) / 4) + 'px, 32px)', lineHeight: 1.1, fontWeight: 800, alignItems: 'center' }}>{layer.text}</div>;
+            if (layer.type === 'shape') return <button type="button" aria-label={'Edit layer ' + layer.id} key={layer.id + index} onClick={() => setSelectedLayer(layer.id)} style={{ ...style, cursor: 'pointer', border: selectedLayer === layer.id ? '2px dotted white' : '2px solid transparent', background: layer.fill || '#D7FF64' }} />;
+            if (layer.type === 'text') return <button type="button" aria-label={'Edit text ' + layer.id} onClick={() => setSelectedLayer(layer.id)} key={layer.id + index} style={{ ...style, cursor: 'pointer', textAlign: 'left', padding: 0, background: 'transparent', border: selectedLayer === layer.id ? '2px dotted #D7FF64' : '2px solid transparent', whiteSpace: 'pre-line', color: layer.color || '#FFFFFF', fontSize: 'clamp(8px, ' + ((layer.fontSize || 74) / 4) + 'px, 32px)', lineHeight: 1.1, fontWeight: 800, alignItems: 'center' }}>{layer.text}</button>;
             return null;
           })}
         </div></div> : <div className="filmEmpty">Enter a valid JSON storyboard to preview scenes.</div>}
+        {currentLayer && <div className="filmInspector">
+          <h3>Edit selected layer · {currentLayer.id}</h3>
+          {currentLayer.type === 'text' && <label>Text<textarea value={currentLayer.text || ''} onChange={(event) => changeLayer('text', event.target.value)} /></label>}
+          <label>Color<input type="color" value={currentLayer.type === 'shape' ? currentLayer.fill || '#D7FF64' : currentLayer.color || '#FFFFFF'} onChange={(event) => changeLayer(currentLayer.type === 'shape' ? 'fill' : 'color', event.target.value)} /></label>
+          <div className="filmInspectorTimes">
+            <label>Start (sec)<input type="number" min="0" max={scene.duration} step="0.1" value={currentLayer.start ?? 0} onChange={(event) => changeLayer('start', Number(event.target.value))} /></label>
+            <label>End (sec)<input type="number" min="0" max={scene.duration} step="0.1" value={currentLayer.end ?? scene.duration} onChange={(event) => changeLayer('end', Number(event.target.value))} /></label>
+          </div>
+        </div>}
         {scene?.narration && <p className="filmNarration"><strong>Narration</strong> {scene.narration}</p>}
         {videoUrl && <div className="filmVideo"><h3>Rendered MP4</h3><video src={videoUrl} controls playsInline /><a href={videoUrl} target="_blank" rel="noreferrer">Open MP4 ↗</a></div>}
         <p className="filmHint">Storyboard is an approximate scene layout. MP4 is produced by the existing deterministic FFmpeg pipeline; full frame-by-frame preview parity is a later milestone.</p>
