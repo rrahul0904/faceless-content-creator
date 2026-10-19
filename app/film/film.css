@@ -19,3 +19,16 @@
 .filmNarration{margin:18px 0;color:#b9c7d3;font-size:14px;line-height:1.6}.filmNarration strong{display:block;color:#e4f6ea;margin-bottom:5px}
 .filmVideo{margin-top:24px}.filmVideo video{max-width:100%;max-height:360px;display:block;margin:12px 0}.filmEmpty{padding:60px 18px;text-align:center;color:#a7b0c0}
 @media(max-width:900px){.filmWorkspace{grid-template-columns:1fr}.filmHeader{align-items:flex-start;flex-direction:column}.filmEditor textarea{min-height:350px}.filmCanvasOuter{min-height:310px}}
+
+.filmPrompt{border:1px solid #354153;border-radius:14px;background:#20252f;padding:16px;margin:18px 0;display:grid;gap:12px}
+.filmPrompt label,.filmInspector label{display:flex;flex-direction:column;gap:7px;color:#cfdae4;font-size:13px;font-weight:600}
+.filmPrompt input,.filmInspector input,.filmInspector textarea{box-sizing:border-box;width:100%;background:#101720;border:1px solid #435061;border-radius:9px;color:#f1f5fa;padding:10px;font:inherit}
+.filmPrompt button{background:#b4f3cb;color:#101a14;border:none;border-radius:9px;padding:11px 15px;cursor:pointer;font-weight:700}
+.filmPrompt button:disabled{opacity:.5;cursor:not-allowed}
+.filmPrompt small{color:#9baec0;line-height:1.5}
+.filmInspector{border:1px solid #394c4f;border-radius:13px;padding:15px;margin:20px 0;background:#1c2b32;display:grid;gap:12px}
+.filmInspector h3{font-size:14px;margin:0;color:#b4f3cb}
+.filmInspector textarea{min-height:85px;resize:vertical;font-family:inherit;font-size:13px;margin:0}
+.filmInspector input[type=color]{padding:3px;height:38px;width:80px}
+.filmInspectorTimes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.filmPrompt input:focus-visible,.filmInspector input:focus-visible,.filmInspector textarea:focus-visible{outline:2px solid #8bdecb;outline-offset:1px}
