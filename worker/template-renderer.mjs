@@ -245,7 +245,8 @@ async function renderPage(page, index, output, rootWork, renderPath) {
       audioLabels.push(`[${label}]`);
     });
     if (audioLabels.length === 1) {
-      // Short narration must not truncate a scene when the output uses -shortest.\n      filters.push(`${audioLabels[0]}apad,atrim=duration=${duration.toFixed(3)}[outa]`);
+      // Short narration must not truncate a scene when the output uses -shortest.
+      filters.push(`${audioLabels[0]}apad,atrim=duration=${duration.toFixed(3)}[outa]`);
     } else {
       filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=longest:dropout_transition=0,apad,atrim=duration=${duration.toFixed(3)},alimiter=limit=0.95[outa]`);
     }
