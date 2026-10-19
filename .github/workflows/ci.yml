@@ -30,6 +30,8 @@ jobs:
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
+      - name: Agent FilmPlan real MP4 (local narration and multi-scene)
+        run: node --test scripts/smoke-agent-film-render.test.mjs
       - name: Build zero-config Docker image
         run: docker build -t faceless-content-creator:ci .
       - name: Boot zero-config Docker image
