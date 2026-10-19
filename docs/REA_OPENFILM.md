@@ -74,17 +74,17 @@ Deterministic compiler returns a SHA-256 of normalized input, the output documen
 - `dryRun=true`: validate, compile, and return editable template JSON without DB writes.
 - Default create: persist a versioned Studio template and return `templateId`.
 - `render=true`: check workspace render-job limit, persist, queue through existing FFmpeg worker; poll `/api/v1/render-jobs/:id`.
-- UI: `/film` with JSON edit, storyboard preview, validate/save/render; edit generated pages further at `/studio`.
+- UI: `/film` with natural-language script drafting through the existing content service, JSON edit, storyboard preview, click-to-edit text/color/timing inspector, validate/save/render; edit generated pages further at `/studio`.
 - Hosted mode needs valid workspace API key. API limits request JSON to 128 KiB.
 
 ## 6. Test coverage and gates
 
-Local pure contracts: `node --test lib/agent-film/film-plan.test.mjs`.
+Local pure contracts: `node --test lib/agent-film/film-plan.test.mjs`. Real newly-compiled film to H.264 MP4 with local narration: `node --test scripts/smoke-agent-film-render.test.mjs` (requires FFmpeg, ffprobe, espeak-ng, DejaVu font).
 HTTP contract after app boot: `node scripts/smoke-agent-film.mjs`.
 
-Covered: stable normalization/hash, timing/layout conversion, narration/subtitles, format bounds, duplicate IDs, nonfinite or out-of-range values, URL-bearing video rejection, inert text, dry-run, workspace template creation and denial of invalid bearer tokens. The existing CI provides lint/TS/build/Docker/FFmpeg MP4 acceptance; it does not yet assert a real FilmPlan-origin MP4 render.
+Covered: stable normalization/hash, timing/layout conversion, narration/subtitles, format bounds, duplicate IDs, nonfinite or out-of-range values, URL-bearing video rejection, inert text, dry-run, workspace template creation and denial of invalid bearer tokens. CI includes lint/TS/build/Docker/FFmpeg acceptance plus the dedicated FilmPlan-origin MP4 render test. Treat it as unverified until the latest branch run reports pass.
 
-Known limits: no rich timeline scrubbing or click-to-select rendered elements in `/film`; storyboard is approximate, template Studio is editor; only text/shape local content; FFmpeg uses audio extent and a minimum scene duration so declared planned duration and encoded MP4 duration can diverge when TTS narration runs long. Not yet feature-equivalent to OpenFilm.
+Known limits: no rich timeline scrubbing or drag-to-reposition in `/film`; clickable storyboard text/shape has a basic text/color/timing inspector, template Studio is the richer editor; only text/shape local content; FFmpeg uses audio extent and a minimum scene duration so declared planned duration and encoded MP4 duration can diverge when TTS narration runs long. Not yet feature-equivalent to OpenFilm.
 
 ## 7. Follow-on roadmap
 
