@@ -54,7 +54,7 @@ test('a generated FilmPlan renders real, decodable, full-duration H.264 MP4 with
     ]);
     const probe = JSON.parse(stdout);
     assert.ok(probe.streams.some((stream) => stream.codec_name === 'h264' && stream.width === 320 && stream.height === 320));
-    assert.ok(Math.abs(Number(probe.format.duration) - 6) <= 0.3, 'expected combined six-second output');
+    assert.ok(Math.abs(Number(probe.format.duration) - 6) <= 0.3, 'expected six-second output; actual media probe: ' + JSON.stringify(probe));
     console.log(JSON.stringify({ planHash: film.planHash, videoBytes: info.size, duration: probe.format.duration }));
   } finally {
     process.chdir(previous);
