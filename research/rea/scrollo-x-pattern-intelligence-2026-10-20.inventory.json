@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "rea-evidence-inventory-v1",
+  "intakeDate": "2026-10-20",
+  "target": {
+    "redditShareUrl": "https://www.reddit.com/r/IMadeThis/s/uTogR9jQZq",
+    "canonicalRedditUrl": "https://www.reddit.com/r/IMadeThis/comments/1xath99/",
+    "author": "u/ballinhardjustlike",
+    "title": "I built a tool that shows the most viral X posts in every niche, then helps you create you own.",
+    "publicDemoLabel": "Scrollo",
+    "officialProductUrl": null,
+    "verifiedUpstreamRepository": null,
+    "verifiedLicense": null,
+    "sourceCodeAccess": "not verified"
+  },
+  "evidence": [
+    {
+      "type": "reddit_public_html",
+      "url": "https://www.reddit.com/r/IMadeThis/comments/1xath99/",
+      "observedOn": "2026-10-20",
+      "level": "verified-public-post",
+      "supports": [
+        "post title",
+        "author",
+        "demo image alt mentions Scrollo",
+        "visible comment asks for link"
+      ],
+      "limitations": [
+        "live behavior not tested",
+        "complete future comment thread not guaranteed"
+      ]
+    },
+    {
+      "type": "product_search",
+      "level": "name-collision-warning",
+      "observedOn": "2026-10-20",
+      "urls": [
+        "https://www.getscrollo.com/",
+        "https://chromewebstore.google.com/detail/scrollo/jfdapjeggcjebdmnkiappknhckibbodf"
+      ],
+      "supports": [
+        "similarly named unrelated products exist"
+      ],
+      "limitations": [
+        "no demonstrated relationship with Reddit poster"
+      ]
+    }
+  ],
+  "canonicalization": {
+    "classification": "DONOR_CAPABILITY_EXTENSION",
+    "governanceRepository": "rrahul0904/agent-work-os",
+    "governanceIssue": 343,
+    "ownedRepository": "rrahul0904/faceless-content-creator",
+    "ownedIssue": 38,
+    "blockedBy": [
+      "rrahul0904/faceless-content-creator#21",
+      "rrahul0904/faceless-content-creator#37"
+    ],
+    "notOwnedBy": "rrahul0904/live-content-intelligence"
+  },
+  "proposedCapability": "Viral Pattern Intelligence",
+  "scope": {
+    "r0": "done",
+    "r1": "draft_for_review",
+    "r2": "not_started",
+    "r3": "blocked",
+    "r4": "blocked",
+    "r5": "not_started"
+  },
+  "nonClaims": [
+    "verified official Scrollo domain",
+    "verified proprietary product internals",
+    "provider API access",
+    "live metric accuracy",
+    "licensed source code",
+    "deployed feature",
+    "CI PASS"
+  ]
+}
