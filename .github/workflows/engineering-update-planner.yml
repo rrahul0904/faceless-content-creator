@@ -1,0 +1,25 @@
+name: Engineering update planner (offline)
+on:
+  push:
+    paths:
+      - 'creator-console/lib/engineering-update-planner.js'
+      - 'creator-console/tests/engineering-update-planner.test.js'
+      - '.github/workflows/engineering-update-planner.yml'
+  pull_request:
+    paths:
+      - 'creator-console/lib/engineering-update-planner.js'
+      - 'creator-console/tests/engineering-update-planner.test.js'
+      - 'docs/REA_LOUDCODE_ENGINEERING_UPDATES.md'
+      - '.github/workflows/engineering-update-planner.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check creator-console/lib/engineering-update-planner.js
+      - run: node --test creator-console/tests/engineering-update-planner.test.js
