@@ -47,6 +47,13 @@ jobs:
         run: mkdir -p data/renders data/work && npm run db:push
       - name: Compile production Next.js application
         run: npm run build
+      - name: Package isolated SQLite fixture for Next standalone client
+        shell: bash
+        run: |
+          test -f data/faceless.db
+          mkdir -p .next/standalone/data .next/standalone/node_modules/.prisma/data
+          cp data/faceless.db .next/standalone/data/faceless.db
+          cp data/faceless.db .next/standalone/node_modules/.prisma/data/faceless.db
       - name: Exercise creative API with a real local HTTP server
         shell: bash
         run: |
