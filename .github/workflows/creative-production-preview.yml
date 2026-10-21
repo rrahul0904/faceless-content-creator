@@ -50,7 +50,7 @@ jobs:
       - name: Exercise creative API with a real local HTTP server
         shell: bash
         run: |
-          npm run start >/tmp/creative-preview-next.log 2>&1 &
+          HOSTNAME=127.0.0.1 PORT=3000 node .next/standalone/server.js >/tmp/creative-preview-next.log 2>&1 &
           app_pid=$!
           trap 'kill $app_pid 2>/dev/null || true' EXIT
           ready=0
