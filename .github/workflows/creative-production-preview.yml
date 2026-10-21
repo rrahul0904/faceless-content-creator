@@ -5,6 +5,7 @@ on:
     paths:
       - 'lib/creative-production/**'
       - 'scripts/test-creative-production.mjs'
+      - 'scripts/smoke-creative-preview-http.mjs'
       - '.github/workflows/creative-production-preview.yml'
   pull_request:
     paths:
@@ -42,3 +43,20 @@ jobs:
         run: npm run typecheck
       - name: Lint changed production source
         run: npx eslint lib/creative-production/preview.ts app/api/v1/creative-production/preview/route.ts app/creative-production/page.tsx app/page.tsx
+      - name: Initialize isolated local database
+        run: mkdir -p data/renders data/work && npm run db:push
+      - name: Compile production Next.js application
+        run: npm run build
+      - name: Exercise creative API with a real local HTTP server
+        shell: bash
+        run: |
+          npm run start >/tmp/creative-preview-next.log 2>&1 &
+          app_pid=$!
+          trap 'kill $app_pid 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in {1..45}; do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/creative-preview-next.log; exit 1; fi
+          node scripts/smoke-creative-preview-http.mjs
