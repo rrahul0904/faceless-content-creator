@@ -1,0 +1,28 @@
+name: Campaign Planner Scope (REA)
+
+on:
+  push:
+    branches:
+      - research/rea-distribpal-campaign-planner-20261020
+    paths:
+      - 'creator-console/lib/campaign-planner.js'
+      - 'creator-console/tests/campaign-planner.test.js'
+      - '.github/workflows/campaign-planner-scope.yml'
+  pull_request:
+    paths:
+      - 'creator-console/lib/campaign-planner.js'
+      - 'creator-console/tests/campaign-planner.test.js'
+      - '.github/workflows/campaign-planner-scope.yml'
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Campaign planner deterministic and negative tests
+        run: node --test creator-console/tests/campaign-planner.test.js
