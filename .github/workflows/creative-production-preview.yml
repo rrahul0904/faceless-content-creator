@@ -24,3 +24,21 @@ jobs:
           node-version: '22'
       - name: Deterministic production preview and adversarial tests
         run: node --experimental-strip-types --test scripts/test-creative-production.mjs
+  static-check:
+    needs: offline-contract
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Typecheck app including new route and UI
+        run: npm run typecheck
+      - name: Lint changed production source
+        run: npx eslint lib/creative-production/preview.ts app/api/v1/creative-production/preview/route.ts app/creative-production/page.tsx app/page.tsx
