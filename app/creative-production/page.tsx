@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { FormEvent } from 'react';
 import './creative-production.css';
 
@@ -81,10 +82,10 @@ export default function CreativeProductionPage() {
   return (
     <main className="cpPage">
       <header className="cpHeader">
-        <a className="cpBack" href="/">← Creator Console</a>
+        <Link className="cpBack" href="/">← Creator Console</Link>
         <span className="cpTag">REA · ZERO-SPEND PREPRODUCTION</span>
         <h1>Creative production</h1>
-        <p>Turn verified product references into a time-coded concept and shot plan. Review first; generating or publishing media is not enabled here.</p>
+        <p>Turn workspace-owned product references into a time-coded concept and shot plan. Review first; generating or publishing media is not enabled here.</p>
       </header>
 
       <div className="cpLayout">
