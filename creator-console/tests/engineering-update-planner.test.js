@@ -29,3 +29,5 @@ test('unsourced metric fields cannot become claims',()=>{const x=plan({events:[e
 test('event type allowlist',()=>fails(()=>plan({events:[event({kind:'social_post'})]}),'INVALID_EVENT'));
 test('event cap and draft limit',()=>{fails(()=>plan({events:Array(101).fill(BASE.events[0])}),'INVALID_EVENTS');fails(()=>plan({maxDrafts:0}),'INVALID_DRAFT_LIMIT');});
 test('empty input makes empty plan',()=>assert.equal(plan({events:[]}).drafts.length,0));
+
+test('conflicting duplicate evidence is rejected',()=>{const altered=event({title:'A contradictory assertion'});fails(()=>plan({events:[BASE.events[0],altered]}),'CONFLICTING_SOURCE_EVIDENCE');});
