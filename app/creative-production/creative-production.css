@@ -1,0 +1,44 @@
+.cpPage{min-height:100vh;background:#0a1020;color:#eaf0fb;padding:36px clamp(16px,4vw,68px) 80px;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
+.cpPage *{box-sizing:border-box}
+.cpHeader{max-width:860px;margin:0 auto 32px}
+.cpBack{display:inline-block;color:#a8bfe6;text-decoration:none;font-size:14px;margin-bottom:24px}
+.cpBack:hover{text-decoration:underline}
+.cpTag{font-size:11px;font-weight:750;letter-spacing:.11em;color:#9bd0ff;border:1px solid #315071;padding:6px 10px;border-radius:99px}
+.cpHeader h1{font-size:clamp(34px,5vw,52px);letter-spacing:-.04em;margin:16px 0 12px}
+.cpHeader p{line-height:1.65;font-size:16px;color:#aabbce;max-width:710px}
+.cpLayout{display:grid;grid-template-columns:minmax(340px,1fr) minmax(340px,1fr);gap:24px;max-width:1220px;margin:auto;align-items:start}
+.cpPanel{background:#131d2f;border:1px solid #2e3d54;border-radius:18px;padding:26px;min-width:0}
+.cpPanel h2{font-size:19px;margin:0 0 22px;color:#f1f5ff}
+.cpPanel form{display:flex;flex-direction:column;gap:10px}
+.cpPanel label{font-size:13px;font-weight:700;color:#e2eaf9;margin-top:12px}
+.cpPanel input,.cpPanel select,.cpPanel textarea{width:100%;background:#0d1627;color:#fff;border:1px solid #344763;border-radius:9px;padding:12px;line-height:1.5;outline-offset:2px;font:inherit;font-size:14px}
+.cpPanel input:focus-visible,.cpPanel select:focus-visible,.cpPanel textarea:focus-visible{outline:2px solid #93bdfa}
+.cpPanel input:disabled,.cpPanel select:disabled{opacity:.65}
+.cpPanel small{font-size:12px;color:#97a9c3;line-height:1.5}
+.cpOptions{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-top:6px}
+.cpOptions div{display:flex;flex-direction:column;gap:8px}
+.cpOptions label{margin-top:0}
+.cpSubmit{background:#a4ccff;color:#11223c;font-weight:800;border:0;border-radius:10px;padding:14px;margin-top:12px;cursor:pointer;font-size:14px}
+.cpSubmit:hover:not(:disabled){background:#c2dcff}
+.cpSubmit:disabled{cursor:not-allowed;opacity:.5}
+.cpAlert{padding:12px;border-radius:8px;background:#412534;color:#ffd9e2;border:1px solid #90445d;font-size:13px}
+.cpHint{padding:12px;border-radius:8px;background:#233248;color:#d4e7ff;font-size:13px}
+.cpEmpty{min-height:330px;border:1px dashed #42536c;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:28px;gap:12px}
+.cpEmptySymbol{font-size:56px;color:#6688b4}
+.cpEmpty p{color:#b0bfd4;line-height:1.6;max-width:350px}
+.cpSummary{display:flex;flex-direction:column;gap:10px;padding:16px;background:#1e3049;border-radius:12px}
+.cpSummary strong{font-size:20px}
+.cpSummary span{color:#cce0fa}
+.cpSummary code{overflow-wrap:anywhere}
+.cpShots{margin:20px 0;padding-left:20px}
+.cpShots li{padding:14px 4px 18px;border-bottom:1px solid #2e3d54}
+.cpShots li::marker{color:#80b2f2}
+.cpShotHead{display:flex;align-items:center;justify-content:space-between;gap:12px;text-transform:capitalize}
+.cpShotHead time{color:#98c4ff;font-size:12px;white-space:nowrap}
+.cpShots p{font-size:15px;line-height:1.55;color:#e9f0fb}
+.cpShots small{display:block;margin-top:6px;overflow-wrap:anywhere}
+.cpShots a{color:#afceff}
+.cpSafety{padding:16px;border:1px solid #48607f;background:#202c3e;border-radius:12px}
+.cpSafety p{color:#c0cde0;font-size:13px;line-height:1.5}
+@media(max-width:850px){.cpLayout{grid-template-columns:1fr}.cpPanel{padding:20px}}
+@media(max-width:450px){.cpOptions{grid-template-columns:1fr}.cpHeader{margin-bottom:20px}.cpPage{padding-top:22px}}
