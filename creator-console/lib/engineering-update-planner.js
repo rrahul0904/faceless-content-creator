@@ -41,8 +41,8 @@ function buildEngineeringUpdatePlan(input){
  if(!Array.isArray(input.events)||input.events.length>100)fail('INVALID_EVENTS');
  const maxDrafts=input.maxDrafts===undefined?5:input.maxDrafts;
  if(!Number.isSafeInteger(maxDrafts)||maxDrafts<1||maxDrafts>10)fail('INVALID_DRAFT_LIMIT');
- const seen=new Set();
- const events=input.events.map(x=>eventOf(x,repository,asOf)).filter(x=>{const key=x.kind+'|'+x.sourceUrl+'|'+x.sha;if(seen.has(key))return false;seen.add(key);return true;}).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)||a.sourceUrl.localeCompare(b.sourceUrl));
+ const seen=new Map();
+ const events=input.events.map(x=>eventOf(x,repository,asOf)).filter(x=>{const key=x.kind+'|'+x.sourceUrl+'|'+x.sha, snapshot=JSON.stringify(x);if(seen.has(key)){if(seen.get(key)!==snapshot)fail('CONFLICTING_SOURCE_EVIDENCE');return false;}seen.set(key,snapshot);return true;}).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)||a.sourceUrl.localeCompare(b.sourceUrl));
  const drafts=events.slice(0,maxDrafts).map(e=>{
   const summary=e.kind==='commit'?'Development update: '+e.title+'.':e.kind==='merged_pr'?'Merged pull request #'+e.number+': '+e.title+'.':'Tagged release '+e.tag+': '+e.title+'.';
   const evidence={kind:e.kind,sourceUrl:e.sourceUrl,commitSha:e.sha,occurredAt:e.occurredAt};
