@@ -31,6 +31,7 @@ The initial slice writes no persistent campaign state; it is a deterministic pre
 
 - `lib/creative-production/preview.ts`: deterministic generation-free plan, workspace-bound SHA-256 preview ID, visual anchors carried to every shot, source URL validation, grounded claims only.
 - `app/api/v1/creative-production/preview/route.ts`: Zod shape validation, workspace authentication, tenant-owned brand asset check, metered rate enforcement, and JSON response. *A supplied link alone is not independently verified proof.*
+- `app/creative-production/page.tsx`: real local-mode user interface at `/creative-production`; reads tenant image assets, submits a factual brief and displays time-coded shots without charging or posting. Hosted mode fails closed until proper customer sign-in/session support is built. There is intentionally no misleading media-generation button.
 - `scripts/test-creative-production.mjs`: native offline tests for repeatability, tenant digest isolation, visual continuity, exact timing, rejection of missing evidence, path traversal and private/invalid URLs, unsupported options and invalidation when facts change.
 - `.github/workflows/creative-production-preview.yml`: scoped tests, no keys.
 
