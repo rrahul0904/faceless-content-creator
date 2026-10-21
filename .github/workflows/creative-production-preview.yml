@@ -55,7 +55,7 @@ jobs:
           trap 'kill $app_pid 2>/dev/null || true' EXIT
           ready=0
           for attempt in {1..45}; do
-            if curl -fsS 'http://127.0.0.1:3000/api/v1/brand-assets?type=IMAGE' >/dev/null; then ready=1; break; fi
+            if curl -fsS 'http://127.0.0.1:3000/' >/dev/null; then ready=1; break; fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then cat /tmp/creative-preview-next.log; exit 1; fi
