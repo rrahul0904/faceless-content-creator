@@ -1,0 +1,26 @@
+name: Creative Production Preview (REA)
+on:
+  push:
+    branches: [research/rea-supercmo-creative-production-20261021]
+    paths:
+      - 'lib/creative-production/**'
+      - 'scripts/test-creative-production.mjs'
+      - '.github/workflows/creative-production-preview.yml'
+  pull_request:
+    paths:
+      - 'lib/creative-production/**'
+      - 'scripts/test-creative-production.mjs'
+      - 'app/api/v1/creative-production/**'
+      - '.github/workflows/creative-production-preview.yml'
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deterministic production preview and adversarial tests
+        run: node --experimental-strip-types --test scripts/test-creative-production.mjs
