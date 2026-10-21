@@ -38,7 +38,7 @@ Allowed repo GitHub connector (read only; not yet implemented)
 - Rejects private, unauthenticated and cross-repository inputs; suspicious URL domains and query strings; bad hashes, PRs and tags; future timestamps; secret-looking and unsafe title data. Not a comprehensive PII/secret filter.
 - Fixed ordering, event de-duplication, workspace-bound IDs, plan digest, conservative summaries. No revenue, user or impact promises. Every output is `needs_review`, `canSchedule:false`, `canPublish:false`, `verification:'source-reported-only'`.
 - No source fetching, model calls, provider credentials, external scheduling, SaaS mutation or social posts.
-- 22 local tests passed. Scoped CI and independent review are separate gates.
+- 23 scoped tests passed. Scoped CI and independent review are separate gates.
 
 ## Release ledger
 | Gate | Status |
@@ -46,7 +46,7 @@ Allowed repo GitHub connector (read only; not yet implemented)
 | Public source identity and functional extraction | done |
 | Ownership/routing, clean-room and product boundaries | done |
 | Offline evidence-linked deterministic planner | branch implementation |
-| 22 negative/replay fixture tests | locally passing, CI pending |
+| 23 negative/replay fixture tests | locally passing, CI pending |
 | Authenticated GitHub connector and webhook/replay controls | pending |
 | Creator editorial surface and voice + signed approval integration | pending |
 | Consented social queue and metrics + cancellation | pending |
