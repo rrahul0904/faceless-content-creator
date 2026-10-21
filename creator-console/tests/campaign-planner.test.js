@@ -66,7 +66,7 @@ test('impossible calendar dates fail rather than rolling into another month',()=
 });
 test('no unverified claim fallback and no network/API-key/publishing side effects',()=>{
   const x=fixture();x.evidence=[];
-  fails(x,'UNSUPPORTED_CLAIM');
+  fails(x,'INVALID_EVIDENCE');
   const p=proposeCampaign(fixture());
   assert.equal(p.posts[0].storyboard.slides[2].assertion,'owner-provided-claim');
   assert.deepEqual(p.posts[0].storyboard.slides[2].evidenceIds,['source1']);
