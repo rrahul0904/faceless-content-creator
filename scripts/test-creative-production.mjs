@@ -39,7 +39,7 @@ test('pacing estimator flags long spoken claims without any vendor call', () => 
   const long = previewCreativeProduction('workspace-a', input);
   assert.equal(long.shots[0].pacing.potentialOverrun, true);
   assert(long.shots[0].pacing.estimatedSpeechSeconds > 15);
-  assert.equal(long.shots[0].pacing.wordCount, long.shots[0].spoken.trim().split(/\\s+/u).length);
+  assert.equal(long.shots[0].pacing.wordCount, long.shots[0].spoken.trim().split(/\s+/u).length);
   assert.equal(long.controls.generationAllowed, false);
   assert.equal(long.controls.paidMediaCallsMade, 0);
 });
