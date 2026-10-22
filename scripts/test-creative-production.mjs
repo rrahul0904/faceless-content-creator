@@ -35,7 +35,7 @@ test('pacing estimator flags long spoken claims without any vendor call', () => 
   assert(normal.shots.every(shot => shot.pacing.potentialOverrun === false));
   assert(normal.shots.every(shot => shot.pacing.slotSeconds === 15));
   const input = fixture();
-  input.product.claims[0].text = Array(34).fill('practical').join(' ');
+  input.product.claims[0].text = Array(70).fill('go').join(' ');
   const long = previewCreativeProduction('workspace-a', input);
   assert.equal(long.shots[0].pacing.potentialOverrun, true);
   assert(long.shots[0].pacing.estimatedSpeechSeconds > 15);
