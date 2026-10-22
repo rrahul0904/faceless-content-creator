@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import './film.css';
+import { resolveFilmFrame } from '../../lib/agent-film/timeline.mjs';
 
 type Bounds = { x: number; y: number; width: number; height: number };
 type Layer = { id: string; type: string; text?: string; fill?: string; color?: string; fontSize?: number; bounds: Bounds; start?: number; end?: number };
@@ -46,6 +47,7 @@ export default function AgentFilmPage() {
   const [selectedLayer, setSelectedLayer] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [selected, setSelected] = useState(0);
+  const [playhead, setPlayhead] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Ready to validate your storyboard.');
   const [result, setResult] = useState<FilmResponse['data'] | null>(null);
@@ -61,6 +63,8 @@ export default function AgentFilmPage() {
   const scenes = plan?.scenes ?? [];
   const scene = scenes[selected] ?? scenes[0];
   const totalDuration = scenes.reduce((total, item) => total + (Number(item.duration) || 0), 0);
+  const frame = resolveFilmFrame(scenes, playhead);
+  const activeLayers = new Set(frame.sceneIndex === selected ? frame.visibleLayerIds : []);
   const ratio = plan?.format === 'landscape' ? '16 / 9' : plan?.format === 'square' ? '1' : '9 / 16';
 
   async function draftFromIdea() {
@@ -95,7 +99,7 @@ export default function AgentFilmPage() {
       };
       if (!freshPlan.scenes.length) throw new Error('Script service returned no storyboard beats');
       setSource(JSON.stringify(freshPlan, null, 2));
-      setSelected(0); setSelectedLayer('');
+      setSelected(0); setPlayhead(0); setSelectedLayer('');
       setMessage('Draft ready. Select any scene or text layer to refine it, then validate.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to draft video');
@@ -173,7 +177,7 @@ export default function AgentFilmPage() {
           <button disabled={busy || !idea.trim()} onClick={() => void draftFromIdea()}>Draft storyboard from idea</button>
           <small>Uses the existing content service: configured LLM if available, otherwise a local deterministic draft. Review generated claims before publishing.</small>
         </div>
-        <textarea aria-label="FilmPlan JSON storyboard" spellCheck={false} value={source} onChange={(event) => { setSource(event.target.value); setResult(null); }} />
+        <textarea aria-label="FilmPlan JSON storyboard" spellCheck={false} value={source} onChange={(event) => { setSource(event.target.value); setSelected(0); setPlayhead(0); setSelectedLayer(''); setResult(null); }} />
         <details><summary>Hosted workspace credentials</summary><label className="filmAuth">Workspace API key (optional in local mode)<input type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} /></label></details>
         <div className="filmButtons">
           <button disabled={busy} onClick={() => void submit('validate')} className="filmSecondary">Validate</button>
@@ -187,15 +191,23 @@ export default function AgentFilmPage() {
       <div className="filmPreview">
         <div className="filmSectionHeader"><h2>Visual storyboard</h2><span>{totalDuration.toFixed(1)} sec</span></div>
         <div className="filmScenePicker" aria-label="Choose scene">
-          {scenes.map((item, index) => <button key={item.id + index} onClick={() => { setSelected(index); setSelectedLayer(''); }} className={selected === index ? 'selected' : ''}>
+          {scenes.map((item, index) => <button key={item.id + index} onClick={() => { setSelected(index); setPlayhead(sceneSeconds(scenes, index)); setSelectedLayer(''); }} className={selected === index ? 'selected' : ''}>
             <small>{sceneSeconds(scenes, index).toFixed(1)}s</small>
             <strong>{item.name || item.id}</strong>
             <small>{item.duration}s</small>
           </button>)}
         </div>
+        <div className="filmTimeline" style={{ padding: '12px 0' }}>
+          <label htmlFor="film-playhead">Inspect at {frame.time.toFixed(1)}s of {totalDuration.toFixed(1)}s</label>
+          <input id="film-playhead" aria-label="Scrub storyboard timeline" type="range" min={0} max={Math.max(totalDuration, 0.1)} step={0.1} value={Math.min(playhead, totalDuration)} disabled={!totalDuration} style={{ display: 'block', width: '100%', marginTop: 8 }} onChange={(event) => {
+            const next = resolveFilmFrame(scenes, Number(event.target.value));
+            setPlayhead(next.time); setSelected(next.sceneIndex); setSelectedLayer('');
+          }} />
+          <small>Scene {scenes.length ? frame.sceneIndex + 1 : 0}/{scenes.length} · {frame.localTime.toFixed(1)}s into this scene</small>
+        </div>
         {scene ? <div className="filmCanvasOuter"><div className="filmCanvas" style={{ aspectRatio: ratio, backgroundColor: scene.background || '#0B0D10' }}>
           {scene.layers?.map((layer, index) => {
-            if (!layer.bounds) return null;
+            if (!layer.bounds || !activeLayers.has(layer.id)) return null;
             const style = {
               position: 'absolute' as const, zIndex: index + 1,
               left: (layer.bounds.x * 100) + '%', top: (layer.bounds.y * 100) + '%',
@@ -218,7 +230,7 @@ export default function AgentFilmPage() {
         </div>}
         {scene?.narration && <p className="filmNarration"><strong>Narration</strong> {scene.narration}</p>}
         {videoUrl && <div className="filmVideo"><h3>Rendered MP4</h3><video src={videoUrl} controls playsInline /><a href={videoUrl} target="_blank" rel="noreferrer">Open MP4 ↗</a></div>}
-        <p className="filmHint">Storyboard is an approximate scene layout. MP4 is produced by the existing deterministic FFmpeg pipeline; full frame-by-frame preview parity is a later milestone.</p>
+        <p className="filmHint">Timeline scrubbing respects scene cuts and layer start/end times. Layout is approximate; rendered MP4 is produced by the existing FFmpeg pipeline and pixel-level preview parity is not yet certified.</p>
       </div>
     </section>
   </main>;
