@@ -7,7 +7,7 @@ import './creative-production.css';
 
 type BrandAsset = { id: string; name: string; type: string };
 type Shot = { id: string; role: string; startSeconds: number; endSeconds: number;
-  spoken: string; productAssetId: string; visualAnchors: string[]; evidence: Array<{ text: string; sourceUrl: string }> };
+  spoken: string; productAssetId: string; visualAnchors: string[]; evidence: Array<{ text: string; sourceUrl: string }>; pacing: { wordCount: number; estimatedSpeechSeconds: number; assumptionWordsPerMinute: number; slotSeconds: number; potentialOverrun: boolean } };
 type Preview = {
   previewId: string;
   concept: { name: string; format: string; audience: string; channel: string;
@@ -167,6 +167,10 @@ export default function CreativeProductionPage() {
                   <div className="cpShotHead"><strong>{shot.role.replaceAll('-', ' ')}</strong>
                     <time>{shot.startSeconds}–{shot.endSeconds}s</time></div>
                   <p>{shot.spoken}</p>
+                  <small role={shot.pacing.potentialOverrun ? 'status' : undefined}>
+                    Voiceover estimate: {shot.pacing.estimatedSpeechSeconds}s at {shot.pacing.assumptionWordsPerMinute} wpm for a {shot.pacing.slotSeconds}s shot.
+                    {shot.pacing.potentialOverrun ? ' Potential narration overrun — shorten the claim before approval.' : ' Actual voiceover timing must still be reviewed.'}
+                  </small>
                   <small>Same product image: {shot.productAssetId}</small>
                   <small>Identity anchors: {shot.visualAnchors.join(' · ')}</small>
                   {shot.evidence.map(item => <small key={item.sourceUrl}>
