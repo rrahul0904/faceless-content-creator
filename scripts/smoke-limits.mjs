@@ -41,7 +41,7 @@ if (before.data?.monthly?.storageMb?.limit !== 1 || before.data?.monthly?.storag
   throw new Error(`Storage quota override or upload accounting is wrong: ${JSON.stringify(before.data?.monthly?.storageMb)}`);
 }
 if (before.data?.members?.limit !== 1) throw new Error(`Membership limit override was not applied: ${JSON.stringify(before.data?.members)}`);
-if (before.data?.rate?.limit !== 7 || before.data?.rate?.used < 5) {
+if (before.data?.rate?.limit !== 7) {
   throw new Error(`Metered rate override or accounting is wrong: ${JSON.stringify(before.data?.rate)}`);
 }
 
@@ -99,6 +99,20 @@ const renderRequest = {
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ modifications: {}, response: { format: 'mp4', mode: 'async' } }),
 };
+
+// Prime the quota test's current minute deterministically. Previous render/http
+// checks may straddle a rate window, so do not assume five requests happened
+// inside this exact minute. Exceeded monthly quota requests increment the rate
+// counter without queueing any additional video jobs.
+for (let attempt = 0; attempt < 15; attempt += 1) {
+  const snapshot = await json('/api/v1/limits');
+  if (snapshot.data.rate.used === 6) break;
+  if (snapshot.data.rate.used > 6) throw new Error('Quota CI window already has more than six metered requests; isolate this workspace');
+  const warm = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
+  if (warm.body.code !== 'quota_exceeded') {
+    throw new Error('Unexpected metered quota warmup: ' + JSON.stringify(warm.body));
+  }
+}
 
 const quotaRejected = await expectStatus(`/api/v1/templates/${encodeURIComponent(templateId)}/render`, 429, renderRequest);
 if (quotaRejected.body?.code !== 'quota_exceeded' || quotaRejected.body?.limit?.resource !== 'RENDER_JOB') {

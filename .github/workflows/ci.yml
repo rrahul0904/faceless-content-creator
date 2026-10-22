@@ -21,14 +21,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg espeak-ng fonts-dejavu-core
       - run: npm ci
-      - run: npm audit --omit=dev --audit-level=high
       - run: npx prisma generate
       - run: mkdir -p data/renders data/work && npm run db:push
+      - name: Agent FilmPlan contracts
+        run: node --test lib/agent-film/film-plan.test.mjs
+      - name: Deterministic FilmPlan timeline contracts
+        run: node --test lib/agent-film/timeline.test.mjs
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
       - name: Render real MP4 through worker
         run: npm run render:smoke
+      - name: Agent FilmPlan real MP4 (local narration and multi-scene)
+        run: node --test scripts/smoke-agent-film-render.test.mjs
       - name: Build zero-config Docker image
         run: docker build -t faceless-content-creator:ci .
       - name: Boot zero-config Docker image
@@ -55,6 +60,10 @@ jobs:
           echo "SMOKE_API_KEY=$SMOKE_API_KEY" >> "$GITHUB_ENV"
       - name: Exercise app APIs and fetch rendered MP4
         run: npm run http:smoke
+      - name: Agent FilmPlan API smoke
+        env:
+          SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
+        run: node scripts/smoke-agent-film.mjs
       - name: Exercise plan limits and membership controls
         env:
           SMOKE_API_KEY: ${{ env.SMOKE_API_KEY }}
@@ -79,6 +88,8 @@ jobs:
           SMOKE_BASE_URL: http://127.0.0.1:3001
           SMOKE_API_KEY: ${{ env.HOSTED_SMOKE_API_KEY }}
         run: npm run auth:smoke
+      - name: Security dependency audit (release gate)
+        run: npm audit --omit=dev --audit-level=high
       - name: Show container logs on failure
         if: failure()
         run: |

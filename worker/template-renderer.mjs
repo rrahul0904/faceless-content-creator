@@ -245,9 +245,10 @@ async function renderPage(page, index, output, rootWork, renderPath) {
       audioLabels.push(`[${label}]`);
     });
     if (audioLabels.length === 1) {
-      filters.push(`${audioLabels[0]}anull[outa]`);
+      // Short narration must not truncate a scene when the output uses -shortest.
+      filters.push(`${audioLabels[0]}apad,atrim=duration=${duration.toFixed(3)}[outa]`);
     } else {
-      filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=longest:dropout_transition=0,alimiter=limit=0.95[outa]`);
+      filters.push(`${audioLabels.join('')}amix=inputs=${audioLabels.length}:duration=longest:dropout_transition=0,apad,atrim=duration=${duration.toFixed(3)},alimiter=limit=0.95[outa]`);
     }
     outputAudio = '[outa]';
   } else {
@@ -257,7 +258,7 @@ async function renderPage(page, index, output, rootWork, renderPath) {
   args.push(
     '-filter_complex', filters.join(';'), '-map', '[outv]', '-map', outputAudio,
     '-t', duration.toFixed(3), '-r', '30', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
-    '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-shortest', renderPath,
+    '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', '-shortest', renderPath,
   );
   await execFileAsync('ffmpeg', args, { maxBuffer: 1024 * 1024 * 96 });
   return duration;
@@ -284,11 +285,23 @@ export async function renderTemplateVideo({ jobId, document, response = {} }) {
   }
 
   const outputFile = path.join(renderDir, `${jobId}.mp4`);
-  if (pageFiles.length === 1) await execFileAsync('ffmpeg', ['-y', '-i', pageFiles[0], '-c', 'copy', '-movflags', '+faststart', outputFile]);
-  else {
-    const concatFile = path.join(workDir, 'pages.txt');
-    await writeFile(concatFile, pageFiles.map((file) => `file '${file.replaceAll("'", "'\\''")}'`).join('\n'), 'utf8');
-    await execFileAsync('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', concatFile, '-c', 'copy', '-movflags', '+faststart', outputFile]);
+  if (pageFiles.length === 1) {
+    await execFileAsync('ffmpeg', ['-y', '-i', pageFiles[0], '-c', 'copy', '-movflags', '+faststart', outputFile]);
+  } else {
+    // All pages encode at consistent 48kHz stereo. A stream-copy concat demuxer
+    // can still preserve discontinuous PTS/DTS across short AAC clips, which
+    // makes the container incorrectly report 2x duration and desync narration.
+    // Rebase timestamps per page through the concat filter instead.
+    const inputArgs = pageFiles.flatMap((file) => ['-i', file]);
+    const streams = pageFiles.map((_, i) => '[' + i + ':v:0][' + i + ':a:0]').join('');
+    await execFileAsync('ffmpeg', [
+      '-y', ...inputArgs,
+      '-filter_complex', streams + 'concat=n=' + pageFiles.length + ':v=1:a=1[outv][outa]',
+      '-map', '[outv]', '-map', '[outa]',
+      '-r', '30', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-ac', '2',
+      '-t', totalDuration.toFixed(3), '-movflags', '+faststart', outputFile,
+    ], { maxBuffer: 1024 * 1024 * 96 });
   }
 
   const bytes = await readFile(outputFile);
