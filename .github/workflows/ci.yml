@@ -25,6 +25,8 @@ jobs:
       - run: mkdir -p data/renders data/work && npm run db:push
       - name: Agent FilmPlan contracts
         run: node --test lib/agent-film/film-plan.test.mjs
+      - name: Deterministic FilmPlan timeline contracts
+        run: node --test lib/agent-film/timeline.test.mjs
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
