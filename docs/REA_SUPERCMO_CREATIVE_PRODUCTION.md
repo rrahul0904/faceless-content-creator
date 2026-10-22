@@ -4,6 +4,7 @@
 
 - User input: https://www.reddit.com/r/buildinpublic/s/xUfgjXjqcw
 - Resolved post: https://www.reddit.com/r/buildinpublic/comments/1xblzhz/
+- Independent second Reddit discovery: https://www.reddit.com/r/coolgithubprojects/s/oPEElfw3lY → https://www.reddit.com/r/coolgithubprojects/comments/1xblmzq/ ; same upstream repository, **not** a new project.
 - OSS: https://github.com/SupercmoHQ/superCMO-skills at commit `3bf78a423b1ba27a1f500b3b50f806b86cc5bdab`.
 - Root OSS license: Apache-2.0, NOTICE copyright 2026 Kshitiz Kumar. Bundled Inter fonts have SIL OFL-1.1; do not vendor upstream fonts without license review. Hosted SuperCMO is separate and not presumed open source.
 - Upstream components observed: skills for brand/product analysis, campaign planning, scripts, casting, reference-anchored storyboards, image/video/audio production and stitching, local Python MCP, installer, vendor BYOK routing. Current main tree at SHA above has 293 entries.
@@ -32,7 +33,8 @@ The initial slice writes no persistent campaign state; it is a deterministic pre
 - `lib/creative-production/preview.ts`: deterministic generation-free plan, workspace-bound SHA-256 preview ID, visual anchors carried to every shot, source URL validation, grounded claims only.
 - `app/api/v1/creative-production/preview/route.ts`: Zod shape validation, workspace authentication, tenant-owned brand asset check, metered rate enforcement, and JSON response. *A supplied link alone is not independently verified proof.*
 - `app/creative-production/page.tsx`: real local-mode user interface at `/creative-production`; reads tenant image assets, submits a factual brief and displays time-coded shots without charging or posting. Hosted mode fails closed until proper customer sign-in/session support is built. There is intentionally no misleading media-generation button.
-- `scripts/test-creative-production.mjs`: native offline tests for repeatability, tenant digest isolation, visual continuity, exact timing, rejection of missing evidence, path traversal and private/invalid URLs, unsupported options and invalidation when facts change.
+- `scripts/test-creative-production.mjs`: native offline tests for repeatability, tenant digest isolation, visual continuity, exact timing, rejection of missing evidence, path traversal and private/invalid URLs, unsupported options and invalidation when facts change. Includes 150 wpm **advisory** narration overrun regression, not a promise of finished audio quality.
+- Every shot carries `pacing` with word count, estimated spoken duration, available duration, and overrun flag. This is local arithmetic; actual voiceover remains a release gate. The browser displays the estimate so users can shorten claims before spend.
 - `.github/workflows/creative-production-preview.yml`: scoped tests, no keys.
 
 To verify offline on Node 22:
