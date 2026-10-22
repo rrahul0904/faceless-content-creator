@@ -29,6 +29,21 @@ test('zero-spend deterministic replay with same tenant and input', () => {
   assert.equal(a.controls.quote.estimatedUsd, null);
   assert.equal(a.evidenceStatus, 'user-supplied-links-not-independently-verified');
 });
+test('pacing estimator flags long spoken claims without any vendor call', () => {
+  const normal = previewCreativeProduction('workspace-a', fixture());
+  assert(normal.shots.every(shot => shot.pacing.assumptionWordsPerMinute === 150));
+  assert(normal.shots.every(shot => shot.pacing.potentialOverrun === false));
+  assert(normal.shots.every(shot => shot.pacing.slotSeconds === 15));
+  const input = fixture();
+  input.product.claims[0].text = Array(34).fill('practical').join(' ');
+  const long = previewCreativeProduction('workspace-a', input);
+  assert.equal(long.shots[0].pacing.potentialOverrun, true);
+  assert(long.shots[0].pacing.estimatedSpeechSeconds > 15);
+  assert.equal(long.shots[0].pacing.wordCount, long.shots[0].spoken.trim().split(/\\s+/u).length);
+  assert.equal(long.controls.generationAllowed, false);
+  assert.equal(long.controls.paidMediaCallsMade, 0);
+});
+
 test('workspace boundary is included in hash', () => {
   const a = previewCreativeProduction('workspace-a', fixture());
   const b = previewCreativeProduction('workspace-b', fixture());
