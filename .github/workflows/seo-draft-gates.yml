@@ -1,0 +1,31 @@
+name: SEO Draft Quality Gates
+on:
+  push:
+    paths:
+      - "creator-console/lib/**"
+      - "creator-console/api/seo-article.js"
+      - "creator-console/tests/**"
+      - ".github/workflows/seo-draft-gates.yml"
+  pull_request:
+    paths:
+      - "creator-console/lib/**"
+      - "creator-console/api/seo-article.js"
+      - "creator-console/tests/**"
+      - ".github/workflows/seo-draft-gates.yml"
+permissions:
+  contents: read
+jobs:
+  creator-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax validation
+        run: |
+          node --check creator-console/lib/seo-article.js
+          node --check creator-console/api/seo-article.js
+          node --check creator-console/tests/seo-article.test.js
+      - name: Run full Creator Console Node test suite
+        run: cd creator-console && npm test
