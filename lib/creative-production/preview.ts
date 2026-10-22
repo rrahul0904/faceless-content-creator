@@ -120,9 +120,21 @@ export function previewCreativeProduction(workspaceId: string, input: CreativePr
       : i === 0 ? 'Meet ' + name + '. ' + claim.text + '.'
       : i === clipCount - 1 ? 'Learn more about ' + name + '.'
       : claim.text + '.';
+    // Advisory pacing only: 150 words/minute is a planning assumption, not an audio measurement.
+    // An overrun must remain visible to the reviewer before a future media render.
+    const wordCount = spoken.trim().split(/\s+/u).length;
+    const estimatedSpeechSeconds = Math.ceil(wordCount * 60 / 150);
+    const slotSeconds = endSeconds - startSeconds;
     return {
       id: 'shot-' + String(i + 1).padStart(2, '0'),
       role,
+      pacing: {
+        wordCount,
+        estimatedSpeechSeconds,
+        assumptionWordsPerMinute: 150,
+        slotSeconds,
+        potentialOverrun: estimatedSpeechSeconds > slotSeconds,
+      },
       startSeconds,
       endSeconds,
       spoken,
