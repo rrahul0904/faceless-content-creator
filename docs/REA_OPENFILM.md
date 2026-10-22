@@ -96,3 +96,14 @@ Known limits: no rich timeline scrubbing or drag-to-reposition in `/film`; click
 6. **Product gates** — a tested FilmPlan-to-MP4 smoke, security/tenant isolation audit, subscription accounting, UAT, exact-SHA CI and deployment receipts. No silent merge/deployment.
 
 Completion is based on observed receipts, not a speculative percentage.
+
+## 8. Continued intake (2026-10-21) — second Reddit source and timeline inspector
+
+- New Reddit source: https://www.reddit.com/r/coolgithubprojects/comments/1xbxp4k/ (same underlying OpenFilm project; no new product/repo).
+- Refreshed upstream main SHA: `af5756a88d362bdcd71dc870a0e02590420e6944` (2026-10-21T22:02:20Z, versioning commit for 0.2.5); previous 2026-10-18 baseline retained above for reproducibility.
+- Refreshed upstream release: [v0.2.5](https://github.com/openfilm/openfilm/releases/tag/v0.2.5), published 2026-10-21T22:25:58Z. Changes worth evaluating separately: faster/lower-disk editing-project exports, frame transparency consistency, reusable browser processes, cancellation cleanup, updated FFmpeg desktop versions, volume in dB and another desktop agent adapter. These are upstream claims, not verified features in our implementation.
+- New owned implementation: `lib/agent-film/timeline.mjs` pure, deterministic global playhead → scene/local-time/layer-visibility resolver, with matching TypeScript declaration and 5 independent Node tests. `app/film/page.tsx` now exposes a global scrub slider, automatically follows scene cuts, and hides layers outside their start/end interval; clicking a scene sets the playhead to that scene's start.
+- Test receipt: local `node --test lib/agent-film/timeline.test.mjs` **5/5 pass** before GitHub commit; CI adds a dedicated timeline-contract step. This does **not** certify final rendered pixel parity or production deployment.
+- Previous exact-head CI: [39201845873](https://github.com/rrahul0904/faceless-content-creator/actions/runs/39201845873) at `f7044717f8bff5dcd20de157423422684d24ee62`: compiler, lint, typecheck, build, real MP4, Docker, HTTP smoke, limits, and hosted auth passed; security dependency audit failed; Vercel status failure was build-rate-limit, not deployment success.
+- Remaining release blocker: [#37](https://github.com/rrahul0904/faceless-content-creator/issues/37). Do not merge or deploy until dependencies are patched and latest SHA CI/audit/UAT are clean.
+- Next gates: validate CI on the new scrubber head; exact-frame preview/render comparison; tenant-approved media asset IDs and safe transcoding; multi-track audio; export formats; production auth and UAT. Avoid executing arbitrary uploaded HTML/JS and protect manual timeline edits from agent regeneration.
