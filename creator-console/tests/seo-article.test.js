@@ -10,7 +10,7 @@ const sources = [
 ];
 function fixture() {
   return {workspaceId:'test-team',topic:'Reliable data workflows',keyword:'workflow reliability',
-    audience:'data engineers',voice:'precise technical writing',sources,
+    audience:'data engineers',voice:'precise technical writing',sources:sources.map(s=>({...s})),
     outline:{title:'Reliable Data Workflows',metaDescription:'Ways to build reliable data workflows.',
       sections:[{id:'design',heading:'Design principles',sourceIds:['official']},
         {id:'testing',heading:'Testing and recovery',sourceIds:['paper']}]}};
